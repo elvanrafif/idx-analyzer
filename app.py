@@ -2,6 +2,8 @@ from flask import Flask, render_template_string, jsonify, request
 import yfinance as yf
 import pandas as pd
 from datetime import datetime
+import requests
+from requests import Session
 
 app = Flask(__name__)
 
@@ -490,18 +492,32 @@ def df_to_dict(df):
 def index():
     return render_template_string(HTML)
 
+session = Session()
+session.headers.update({
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/110.0.0.0 Safari/537.36'
+})
+
+@app.route('/')
+def index():
+    return render_template_string(HTML)
 
 @app.route('/api/analyze')
 def analyze():
     ticker = request.args.get('ticker', '').strip().upper()
     if not ticker:
         return jsonify({"error": "Ticker tidak boleh kosong."})
+    
+    print(f"DEBUG: Menganalisa ticker {ticker}")
+    
     try:
-        stock = yf.Ticker(f"{ticker}.JK")
-        info  = stock.info
+        stock = yf.Ticker(f"{ticker}.JK", session=session)
+        info = stock.info
+        
         if not info or not (info.get('regularMarketPrice') or info.get('currentPrice')):
-            return jsonify({"error": f"Data tidak ditemukan untuk {ticker}. Cek kode ticker (contoh: BBCA, TLKM, GOTO)."})
+            return jsonify({"error": f"Data tidak ditemukan untuk {ticker}. Pastikan emiten terdaftar di IHSG."})
+        
         clean = {k: (None if isinstance(v, float) and pd.isna(v) else v) for k, v in info.items()}
+        
         return jsonify({
             "ticker":        ticker,
             "updated":       datetime.now().strftime("%d/%m/%Y %H:%M"),
@@ -512,6 +528,7 @@ def analyze():
             "quarterly":     df_to_dict(stock.quarterly_financials),
         })
     except Exception as e:
+        print(f"ERROR: {str(e)}")
         return jsonify({"error": f"Gagal mengambil data: {str(e)}"})
 
 
