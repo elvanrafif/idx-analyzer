@@ -51,8 +51,8 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .toggle-icon{font-size:14px;line-height:1;}
 .toggle-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;text-transform:uppercase;min-width:30px;}
 
-/* SEARCH - RESPONSIVE IMPROVEMENT */
-.search-wrap{display:flex;margin-bottom:36px;position:relative;width:100%;}
+/* SEARCH */
+.search-wrap{display:flex;margin-bottom:36px;position:relative;width:100%;align-items:stretch;}
 .search-prefix{position:absolute;left:18px;top:50%;transform:translateY(-50%);font-family:'Space Mono',monospace;font-size:13px;color:var(--accent);font-weight:700;z-index:1;pointer-events:none;transition:color .3s;}
 #ticker-input{flex:1;background:var(--surface);border:1.5px solid var(--border);border-right:none;color:var(--text);font-family:'Space Mono',monospace;font-size:20px;font-weight:700;padding:18px 18px 18px 62px;outline:none;letter-spacing:3px;text-transform:uppercase;transition:border-color .2s,background .3s,color .3s;border-radius:4px 0 0 4px;min-width:0;}
 #ticker-input:focus{border-color:var(--accent);}
@@ -86,7 +86,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .section{background:var(--card);border:1px solid var(--border);overflow:hidden;box-shadow:0 2px 12px var(--shadow);transition:background .3s,border-color .3s,box-shadow .3s;animation:fadeUp .4s ease both;}
 .section:nth-child(1){animation-delay:.04s}.section:nth-child(2){animation-delay:.08s}.section:nth-child(3){animation-delay:.12s}.section:nth-child(4){animation-delay:.16s}.section:nth-child(5){animation-delay:.20s}.section:nth-child(6){animation-delay:.24s}.section:nth-child(7){animation-delay:.28s}.section:nth-child(8){animation-delay:.32s}
 .section-header{display:flex;align-items:center;gap:10px;padding:13px 20px;border-bottom:1px solid var(--border);cursor:pointer;user-select:none;transition:background .15s;}
-.section-header:hover{background:rgba(128,128,255,.04);}
+.section-header:hover{background:rgba(128,128,255,0.04);}
 .section-icon{font-size:14px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:var(--surface2);border-radius:4px;flex-shrink:0;transition:background .3s;}
 .section-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;flex:1;}
 .section-toggle{font-size:13px;color:var(--muted);transition:transform .2s;}
@@ -133,7 +133,7 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .pos{color:var(--accent);} .neg{color:var(--red);} .na{color:var(--muted);opacity:0.4;}
 
 /* ANALYST */
-.analyst-wrap{padding:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;}
+.analyst-wrap{padding:20px;display:flex;align-items:center;gap:16px;flex-wrap:wrap;justify-content:space-between;}
 .rec-badge{font-size:15px;font-weight:800;padding:10px 18px;border-radius:4px;letter-spacing:1px;text-transform:uppercase;}
 .SB,.STRONGBUY{background:rgba(0,255,136,0.1);color:var(--accent);border:1px solid var(--accent);}
 .B{background:rgba(0,200,100,0.1);color:#00cc66;border:1px solid #00cc66;}
@@ -156,10 +156,18 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   .header{flex-direction: column; align-items: flex-start; gap: 24px;}
   .header-left { width: 100%; justify-content: space-between; }
   
-  /* Input & Button stacking for Mobile */
   .search-wrap { flex-direction: column; gap: 12px; }
-  #ticker-input { border-right: 1.5px solid var(--border); border-radius: 4px; padding-right: 18px; width: 100%; }
-  #search-btn { border-radius: 4px; width: 100%; transform: none !important; }
+  .search-prefix { top: 18px; transform: none; } 
+  #ticker-input { 
+    border-right: 1.5px solid var(--border) !important; 
+    border-radius: 4px !important; 
+    padding: 18px 18px 18px 62px;
+    width: 100%; 
+  }
+  #search-btn { border-radius: 4px !important; width: 100%; transform: none !important; }
+
+  .analyst-wrap { gap: 12px; }
+  .analyst-wrap div:last-child { text-align: left !important; flex: none; width: 100%; }
 
   .stock-hero{grid-template-columns:1fr; padding: 20px;}
   .price-block{text-align:left;}
@@ -390,7 +398,7 @@ function render(d) {
       Target Mean: ${fnum(i.targetMeanPrice,'idr')}<br>
       ${upside ? `Upside: <span class="${parseFloat(upside)>=0?'pos':'neg'}">${upside}%</span>` : ''}
     </div>
-    <div class="rec-info" style="margin-left:auto">
+    <div class="rec-info" style="flex: 1; text-align: right; min-width: 100px;">
       High: ${fnum(i.targetHighPrice,'idr')}<br>
       Low:  ${fnum(i.targetLowPrice,'idr')}
     </div>
