@@ -1,7 +1,7 @@
 from flask import Flask, render_template_string, jsonify, request
 import yfinance as yf
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
 
@@ -476,7 +476,7 @@ def analyze():
         
         return jsonify({
             "ticker":        ticker,
-            "updated":       datetime.now().strftime("%d/%m/%Y %H:%M"),
+            "updated":       datetime.now(timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M"),
             "info":          clean,
             "financials":    df_to_dict(stock.financials),
             "balance_sheet": df_to_dict(stock.balance_sheet),
