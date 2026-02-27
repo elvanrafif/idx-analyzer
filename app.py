@@ -1,6 +1,7 @@
 from flask import Flask, render_template_string, jsonify, request
 import yfinance as yf
 import pandas as pd
+import numpy as np
 from datetime import datetime, timedelta, timezone
 
 app = Flask(__name__)
@@ -179,7 +180,76 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
   .td-label { width: 50%; }
   .td-val { width: 50%; }
   .td-rating { display: none; }
+  .tech-wrap{grid-template-columns:1fr;}
+  .fscore-grid{grid-template-columns:1fr;}
+  .fscore-item:nth-child(odd){border-right:none;}
+  .composite-card{flex-direction:column;align-items:flex-start;}
 }
+/* COMPOSITE SCORE */
+.composite-card{padding:24px 20px;display:flex;align-items:center;gap:24px;flex-wrap:wrap;}
+.composite-score-num{font-family:'Space Mono',monospace;font-size:56px;font-weight:700;line-height:1;}
+.composite-info{flex:1;min-width:160px;}
+.composite-signal{font-size:14px;font-weight:800;letter-spacing:2px;text-transform:uppercase;padding:6px 14px;border-radius:4px;display:inline-block;margin-bottom:10px;}
+.c-sb{background:rgba(0,255,136,0.15);color:var(--accent);border:1px solid var(--accent);}
+.c-b{background:rgba(0,200,100,0.12);color:#00cc66;border:1px solid #00cc66;}
+.c-h{background:rgba(255,200,0,0.12);color:#cc9900;border:1px solid #cc9900;}
+.c-s{background:rgba(255,51,85,0.10);color:var(--red);border:1px solid var(--red);}
+.c-ss{background:rgba(180,0,30,0.12);color:#ff0033;border:1px solid #ff0033;}
+.composite-bars{display:grid;gap:6px;flex:2;min-width:220px;}
+.cbar-row{display:flex;align-items:center;gap:8px;}
+.cbar-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);width:90px;flex-shrink:0;}
+.cbar-track{flex:1;height:6px;background:var(--surface2);border-radius:3px;overflow:hidden;}
+.cbar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,var(--red),var(--warn) 50%,var(--accent));transition:width .4s;}
+.cbar-val{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);width:28px;text-align:right;}
+/* PIOTROSKI */
+.fscore-header{display:flex;align-items:center;gap:16px;padding:16px 20px 8px;}
+.fscore-num{font-family:'Space Mono',monospace;font-size:44px;font-weight:700;line-height:1;}
+.fscore-rating{font-size:11px;font-weight:700;padding:4px 10px;border-radius:2px;letter-spacing:1px;}
+.fscore-kuat{background:rgba(0,255,136,0.12);color:var(--accent);}
+.fscore-cukup{background:rgba(255,200,0,0.12);color:#cc9900;}
+.fscore-lemah{background:rgba(255,51,85,0.12);color:var(--red);}
+.fscore-grid{display:grid;grid-template-columns:1fr 1fr;padding:0 20px 16px;gap:0;}
+.fscore-item{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid rgba(128,128,128,0.07);font-size:11px;}
+.fscore-item:nth-child(odd){border-right:1px solid rgba(128,128,128,0.07);padding-right:12px;}
+.fscore-item:nth-child(even){padding-left:12px;}
+.fscore-check{width:16px;height:16px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:9px;flex-shrink:0;}
+.fscore-pass{background:rgba(0,255,136,0.15);color:var(--accent);}
+.fscore-fail{background:rgba(255,51,85,0.10);color:var(--red);}
+.fscore-label{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);flex:1;}
+.fscore-val{font-family:'Space Mono',monospace;font-size:10px;color:var(--text);}
+/* ALTMAN Z */
+.altman-wrap{padding:20px;display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+.altman-score{font-family:'Space Mono',monospace;font-size:48px;font-weight:700;line-height:1;}
+.altman-zone{font-size:11px;font-weight:700;padding:4px 10px;border-radius:2px;letter-spacing:1px;margin-top:6px;display:inline-block;}
+.altman-aman{background:rgba(0,255,136,0.12);color:var(--accent);}
+.altman-waspada{background:rgba(255,200,0,0.12);color:#cc9900;}
+.altman-bahaya{background:rgba(255,51,85,0.12);color:var(--red);}
+.altman-gauge{flex:1;min-width:200px;}
+.altman-scale{display:flex;height:10px;border-radius:5px;overflow:hidden;margin:8px 0 4px;}
+.altman-red{background:var(--red);flex:1.1;}.altman-yellow{background:#cc9900;flex:1.5;}.altman-green{background:var(--accent);flex:2.5;}
+.altman-labels{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);}
+/* MACD + BB */
+.tech-wrap{padding:16px 20px 20px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+.tech-card{background:var(--surface2);border-radius:4px;padding:14px;}
+.tech-card-title{font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);letter-spacing:1px;margin-bottom:10px;text-transform:uppercase;}
+.tech-sig{font-size:12px;font-weight:700;padding:4px 10px;border-radius:2px;letter-spacing:1px;display:inline-block;margin-bottom:8px;}
+.sig-bullish{background:rgba(0,255,136,0.12);color:var(--accent);}
+.sig-bearish{background:rgba(255,51,85,0.10);color:var(--red);}
+.sig-overbought{background:rgba(255,107,53,0.12);color:var(--warn);}
+.sig-oversold{background:rgba(0,136,255,0.12);color:var(--accent2);}
+.sig-netral{background:var(--surface);color:var(--muted);}
+.sig-golden{background:rgba(0,255,136,0.15);color:var(--accent);border:1px solid var(--accent);}
+.sig-death{background:rgba(255,51,85,0.12);color:var(--red);border:1px solid var(--red);}
+.tech-row{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:11px;padding:3px 0;border-bottom:1px solid rgba(128,128,128,0.07);}
+.tech-row:last-child{border-bottom:none;}
+.tech-row-label{color:var(--muted);}
+/* RVOL */
+.rvol-wrap{padding:20px;display:flex;align-items:center;gap:20px;}
+.rvol-num{font-family:'Space Mono',monospace;font-size:52px;font-weight:700;line-height:1;}
+.rvol-bar-wrap{flex:1;}
+.rvol-bar-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:8px 0;}
+.rvol-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:4px;transition:width .4s;}
+.rvol-sig{font-size:11px;font-weight:700;padding:3px 8px;border-radius:2px;letter-spacing:1px;display:inline-block;}
 </style>
 </head>
 <body>
@@ -325,6 +395,115 @@ function ftable(data, metrics) {
     }).join('')}</tbody>
   </table></div>`;
 }
+function renderComposite(c) {
+  if (!c) return '<p class="no-data">Data composite tidak tersedia.</p>';
+  const weights = {Fundamental:'30%',Technical:'25%',Risk:'20%',Momentum:'15%',Sentiment:'10%'};
+  return `<div class="composite-card">
+    <div>
+      <div class="composite-score-num ${c.final>=70?'pos':c.final<35?'neg':''}">${c.final}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;">/ 100</div>
+    </div>
+    <div class="composite-info">
+      <div class="composite-signal ${c.cls}">${c.signal}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Skor Keputusan Komprehensif</div>
+    </div>
+    <div class="composite-bars">
+      ${Object.entries(c.components).map(([name,val])=>`<div class="cbar-row">
+        <span class="cbar-label">${name.toUpperCase()} <span style="opacity:.5">${weights[name]||''}</span></span>
+        <div class="cbar-track"><div class="cbar-fill" style="width:${val}%"></div></div>
+        <span class="cbar-val">${val}</span>
+      </div>`).join('')}
+    </div>
+  </div>`;
+}
+function renderPiotroski(p) {
+  if (!p) return '<p class="no-data">Data laporan keuangan tidak cukup untuk F-Score.</p>';
+  const rCls = p.rating==='KUAT'?'fscore-kuat':p.rating==='CUKUP'?'fscore-cukup':'fscore-lemah';
+  return `<div class="fscore-header">
+    <div class="fscore-num ${p.score>=7?'pos':p.score>=5?'':'neg'}">${p.score}<span style="font-size:20px;color:var(--muted)">/9</span></div>
+    <div>
+      <div class="fscore-rating ${rCls}">${p.rating}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;">Piotroski F-Score</div>
+    </div>
+  </div>
+  <div class="fscore-grid">
+    ${Object.entries(p.details).map(([k,f])=>`<div class="fscore-item">
+      <div class="fscore-check ${f.pass?'fscore-pass':'fscore-fail'}">${f.pass?'✓':'✗'}</div>
+      <span class="fscore-label">${f.label}</span>
+      <span class="fscore-val">${f.value}</span>
+    </div>`).join('')}
+  </div>`;
+}
+function renderAltman(a) {
+  if (!a) return '<p class="no-data">Data balance sheet tidak cukup untuk Altman Z-Score.</p>';
+  const zCls = a.zone==='AMAN'?'altman-aman':a.zone==='WASPADA'?'altman-waspada':'altman-bahaya';
+  const sCls = a.zone==='AMAN'?'pos':a.zone==='BAHAYA'?'neg':'';
+  return `<div class="altman-wrap">
+    <div>
+      <div class="altman-score ${sCls}">${a.z_score}</div>
+      <div class="altman-zone ${zCls}">${a.zone}</div>
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:6px;">${a.desc}</div>
+    </div>
+    <div class="altman-gauge">
+      <div class="altman-scale"><div class="altman-red"></div><div class="altman-yellow"></div><div class="altman-green"></div></div>
+      <div class="altman-labels"><span>0 Bahaya</span><span>1.1</span><span>2.6</span><span>5+ Aman</span></div>
+      <div style="margin-top:12px">
+        ${Object.entries(a.components).map(([k,v])=>`<div class="tech-row"><span class="tech-row-label">${k}</span><span>${v}</span></div>`).join('')}
+      </div>
+    </div>
+  </div>`;
+}
+function renderMacdBb(mb) {
+  if (!mb) return '<p class="no-data">Data historis tidak cukup.</p>';
+  const m=mb.macd, b=mb.bb;
+  const ms=(m.signal_label||'').toLowerCase(), bs=(b.signal||'').toLowerCase();
+  const sc={bullish:'sig-bullish',bearish:'sig-bearish',overbought:'sig-overbought',oversold:'sig-oversold',netral:'sig-netral'};
+  const cross = m.cross ? `<div class="tech-sig ${m.cross.includes('GOLDEN')?'sig-golden':'sig-death'}" style="margin-top:6px">${m.cross}</div>` : '';
+  return `<div class="tech-wrap">
+    <div class="tech-card">
+      <div class="tech-card-title">MACD (12,26,9)</div>
+      <div class="tech-sig ${sc[ms]||'sig-netral'}">${m.signal_label}</div>${cross}
+      <div class="tech-row"><span class="tech-row-label">MACD Line</span><span>${m.line}</span></div>
+      <div class="tech-row"><span class="tech-row-label">Signal Line</span><span>${m.signal}</span></div>
+      <div class="tech-row"><span class="tech-row-label">Histogram</span><span class="${m.hist>0?'pos':'neg'}">${m.hist}</span></div>
+    </div>
+    <div class="tech-card">
+      <div class="tech-card-title">Bollinger Bands (20,2)</div>
+      <div class="tech-sig ${sc[bs]||'sig-netral'}">${b.signal}</div>
+      <div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">Rp ${b.upper.toLocaleString('id')}</span></div>
+      <div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>Rp ${b.mid.toLocaleString('id')}</span></div>
+      <div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">Rp ${b.lower.toLocaleString('id')}</span></div>
+      <div class="tech-row"><span class="tech-row-label">%B Position</span><span>${(b.pct_b*100).toFixed(0)}%</span></div>
+    </div>
+  </div>`;
+}
+function renderRvol(rv) {
+  if (!rv) return '<p class="no-data">Data volume tidak tersedia.</p>';
+  const sc = rv.signal==='SANGAT TINGGI'?'bg':rv.signal==='TINGGI'?'by':rv.signal==='NORMAL'?'bb':'br';
+  const barW = Math.min(100, rv.rvol/4*100);
+  return `<div class="rvol-wrap">
+    <div>
+      <div class="rvol-num ${rv.rvol>=2?'pos':rv.rvol<0.7?'neg':''}">${rv.rvol}x</div>
+      <div class="rvol-sig badge ${sc}" style="margin-top:6px">${rv.signal}</div>
+    </div>
+    <div class="rvol-bar-wrap">
+      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">Relative Volume vs 20d Avg</div>
+      <div class="rvol-bar-track"><div class="rvol-bar-fill" style="width:${barW}%"></div></div>
+      <div class="tech-row"><span class="tech-row-label">Volume Hari Ini</span><span>${(rv.today/1e6).toFixed(2)}M</span></div>
+      <div class="tech-row"><span class="tech-row-label">Avg 20 Hari</span><span>${(rv.avg/1e6).toFixed(2)}M</span></div>
+    </div>
+  </div>`;
+}
+function renderRiskAdj(fcf, sortino, sharpe) {
+  const rows = [];
+  if (fcf) {
+    rows.push(['FCF Yield', fcf.yield*100, fcf.signal==='MENARIK'?'🟢 Menarik':fcf.signal==='NETRAL'?'🟡 Netral':fcf.signal==='RENDAH'?'🟠 Rendah':'🔴 Negatif']);
+    rows.push(['Free Cash Flow', fcf.fcf, '']);
+  }
+  if (sortino!=null) rows.push(['Sortino Ratio', sortino, sortino>=1?'🟢 Excellent':sortino>=0.5?'🟡 Bagus':sortino>=0?'🟠 Rendah':'🔴 Negatif']);
+  if (sharpe!=null)  rows.push(['Sharpe Ratio',  sharpe,  sharpe>=1?'🟢 Excellent':sharpe>=0.5?'🟡 Bagus':sharpe>=0?'🟠 Rendah':'🔴 Negatif']);
+  return rows.length ? dtable(rows) : '<p class="no-data">Data tidak tersedia.</p>';
+}
 function render(d) {
   const i = d.info;
   const price = i.regularMarketPrice || i.currentPrice;
@@ -444,6 +623,12 @@ function render(d) {
       ${sec('🏦','KESEHATAN KEUANGAN', healthHTML)}
       ${sec('💵','DIVIDEN', divHTML)}
       ${sec('🎯','REKOMENDASI ANALIS', analystHTML)}
+      ${sec('🏆','COMPOSITE SCORE — Skor Keputusan Investasi', renderComposite(d.composite))}
+      ${sec('📊','PIOTROSKI F-SCORE — Kekuatan Finansial (0–9)', renderPiotroski(d.piotroski))}
+      ${sec('⚠️','ALTMAN Z-SCORE — Risiko Kebangkrutan', renderAltman(d.altman))}
+      ${sec('📉','TECHNICAL — MACD & Bollinger Bands', renderMacdBb(d.macd_bb))}
+      ${sec('📦','RELATIVE VOLUME — Deteksi Akumulasi/Distribusi', renderRvol(d.rvol))}
+      ${sec('💎','RISK-ADJUSTED RETURN — FCF Yield, Sharpe & Sortino', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe))}
       ${sec('📋','INCOME STATEMENT — Tahunan', ftable(d.financials,IS), false)}
       ${sec('🏛️','BALANCE SHEET — Tahunan', ftable(d.balance_sheet,BS), false)}
       ${sec('💸','CASH FLOW — Tahunan', ftable(d.cashflow,CF), false)}
@@ -456,6 +641,246 @@ function render(d) {
 </script>
 </body>
 </html>'''
+
+# ─── INDICATOR FUNCTIONS ───
+
+def calculate_piotroski(ticker):
+    """Piotroski F-Score (0-9)"""
+    try:
+        stock = yf.Ticker(f"{ticker}.JK")
+        bs, fs, cf = stock.balance_sheet, stock.financials, stock.cashflow
+        if bs is None or bs.empty or fs is None or fs.empty or cf is None or cf.empty: return None
+        if len(bs.columns) < 2 or len(fs.columns) < 2: return None
+
+        def bsv(ci, *keys):
+            if ci >= len(bs.columns): return None
+            col = bs.columns[ci]
+            for key in keys:
+                for idx in bs.index:
+                    if key.lower() in str(idx).lower():
+                        try: v = bs.loc[idx, col]; return None if pd.isna(v) else float(v)
+                        except: pass
+            return None
+        def fsv(ci, *keys):
+            if ci >= len(fs.columns): return None
+            col = fs.columns[ci]
+            for key in keys:
+                for idx in fs.index:
+                    if key.lower() in str(idx).lower():
+                        try: v = fs.loc[idx, col]; return None if pd.isna(v) else float(v)
+                        except: pass
+            return None
+        def cfv(ci, *keys):
+            if ci >= len(cf.columns): return None
+            col = cf.columns[ci]
+            for key in keys:
+                for idx in cf.index:
+                    if key.lower() in str(idx).lower():
+                        try: v = cf.loc[idx, col]; return None if pd.isna(v) else float(v)
+                        except: pass
+            return None
+
+        ta0=bsv(0,'total assets'); ta1=bsv(1,'total assets')
+        ni0=fsv(0,'net income');   ni1=fsv(1,'net income')
+        ocf0=cfv(0,'operating cash flow')
+        ltd0=bsv(0,'long term debt'); ltd1=bsv(1,'long term debt')
+        ca0=bsv(0,'current assets'); cl0=bsv(0,'current liabilities')
+        ca1=bsv(1,'current assets'); cl1=bsv(1,'current liabilities')
+        sh0=bsv(0,'ordinary shares','common stock'); sh1=bsv(1,'ordinary shares','common stock')
+        gp0=fsv(0,'gross profit'); rev0=fsv(0,'total revenue')
+        gp1=fsv(1,'gross profit'); rev1=fsv(1,'total revenue')
+
+        score = 0; details = {}
+        roa0 = ni0/ta0 if ni0 and ta0 else None
+        roa1 = ni1/ta1 if ni1 and ta1 else None
+
+        f1=1 if roa0 and roa0>0 else 0; score+=f1
+        details['F1']={'label':'ROA Positif','pass':bool(f1),'value':f'{roa0*100:.1f}%' if roa0 else '—'}
+        f2=1 if ocf0 and ocf0>0 else 0; score+=f2
+        details['F2']={'label':'Arus Kas Operasi > 0','pass':bool(f2),'value':f'Rp {ocf0/1e9:.1f}M' if ocf0 else '—'}
+        f3=1 if roa0 and roa1 and roa0>roa1 else 0; score+=f3
+        details['F3']={'label':'ROA Meningkat YoY','pass':bool(f3),'value':f'{roa0*100:.1f}% vs {roa1*100:.1f}%' if (roa0 and roa1) else '—'}
+        ocf_ta=ocf0/ta0 if ocf0 and ta0 else None
+        f4=1 if ocf_ta and roa0 and ocf_ta>roa0 else 0; score+=f4
+        details['F4']={'label':'Kualitas Laba (OCF>NI)','pass':bool(f4),'value':f'{ocf_ta*100:.1f}% vs {roa0*100:.1f}%' if (ocf_ta and roa0) else '—'}
+        lev0=ltd0/ta0 if ltd0 is not None and ta0 else None
+        lev1=ltd1/ta1 if ltd1 is not None and ta1 else None
+        f5=1 if lev0 is not None and lev1 is not None and lev0<=lev1 else 0; score+=f5
+        details['F5']={'label':'Leverage Tidak Naik','pass':bool(f5),'value':f'{lev0*100:.1f}% vs {lev1*100:.1f}%' if (lev0 is not None and lev1 is not None) else '—'}
+        cr0=ca0/cl0 if ca0 and cl0 else None; cr1=ca1/cl1 if ca1 and cl1 else None
+        f6=1 if cr0 and cr1 and cr0>=cr1 else 0; score+=f6
+        details['F6']={'label':'Current Ratio Tidak Turun','pass':bool(f6),'value':f'{cr0:.2f} vs {cr1:.2f}' if (cr0 and cr1) else '—'}
+        f7=1 if sh0 and sh1 and sh0<=sh1*1.02 else 0; score+=f7
+        details['F7']={'label':'Tidak Ada Dilusi Saham','pass':bool(f7),'value':f'{sh0/1e9:.2f}B vs {sh1/1e9:.2f}B' if (sh0 and sh1) else '—'}
+        gm0=gp0/rev0 if gp0 and rev0 else None; gm1=gp1/rev1 if gp1 and rev1 else None
+        f8=1 if gm0 and gm1 and gm0>=gm1 else 0; score+=f8
+        details['F8']={'label':'Gross Margin Tidak Turun','pass':bool(f8),'value':f'{gm0*100:.1f}% vs {gm1*100:.1f}%' if (gm0 and gm1) else '—'}
+        at0=rev0/ta0 if rev0 and ta0 else None; at1=rev1/ta1 if rev1 and ta1 else None
+        f9=1 if at0 and at1 and at0>=at1 else 0; score+=f9
+        details['F9']={'label':'Asset Turnover Tidak Turun','pass':bool(f9),'value':f'{at0:.2f}x vs {at1:.2f}x' if (at0 and at1) else '—'}
+
+        rating='KUAT' if score>=7 else 'CUKUP' if score>=5 else 'LEMAH'
+        return {'score':score,'max':9,'rating':rating,'details':details}
+    except: return None
+
+def calculate_altman_z(ticker):
+    """Modified Altman Z-Score for non-manufacturing"""
+    try:
+        stock = yf.Ticker(f"{ticker}.JK")
+        bs, fs = stock.balance_sheet, stock.financials
+        if bs is None or bs.empty or fs is None or fs.empty: return None
+
+        def bsv(*keys):
+            col=bs.columns[0]
+            for key in keys:
+                for idx in bs.index:
+                    if key.lower() in str(idx).lower():
+                        try: v=bs.loc[idx,col]; return None if pd.isna(v) else float(v)
+                        except: pass
+            return None
+        def fsv(*keys):
+            col=fs.columns[0]
+            for key in keys:
+                for idx in fs.index:
+                    if key.lower() in str(idx).lower():
+                        try: v=fs.loc[idx,col]; return None if pd.isna(v) else float(v)
+                        except: pass
+            return None
+
+        ta=bsv('total assets'); ca=bsv('current assets'); cl=bsv('current liabilities')
+        re=bsv('retained earnings'); te=bsv('stockholders equity','total equity')
+        tl=bsv('total liabilities'); ebit=fsv('operating income','ebit')
+        if not all([ta,ca,cl,te,tl]) or ta==0 or tl==0: return None
+
+        X1=(ca-cl)/ta; X2=(re or 0)/ta; X3=(ebit or 0)/ta; X4=te/tl
+        z=6.56*X1+3.26*X2+6.72*X3+1.05*X4
+        zone='AMAN' if z>2.6 else 'WASPADA' if z>1.1 else 'BAHAYA'
+        descs={'AMAN':'Risiko kebangkrutan rendah','WASPADA':'Grey zone — perlu monitoring','BAHAYA':'Risiko kebangkrutan tinggi'}
+        return {'z_score':round(z,2),'zone':zone,'desc':descs[zone],
+                'components':{'X1 (Working Capital/TA)':round(X1,3),'X2 (Retained Earn/TA)':round(X2,3),'X3 (EBIT/TA)':round(X3,3),'X4 (Equity/Liab)':round(X4,3)}}
+    except: return None
+
+def calculate_macd_bb(ticker):
+    """MACD + Bollinger Bands"""
+    try:
+        stock = yf.Ticker(f"{ticker}.JK")
+        hist = stock.history(period='6mo')['Close']
+        if len(hist) < 30: return None
+        ema12=hist.ewm(span=12,adjust=False).mean()
+        ema26=hist.ewm(span=26,adjust=False).mean()
+        macd=ema12-ema26; sig=macd.ewm(span=9,adjust=False).mean(); hst=macd-sig
+        sma20=hist.rolling(20).mean(); std20=hist.rolling(20).std()
+        upper=sma20+2*std20; lower=sma20-2*std20
+        cp=float(hist.iloc[-1]); cm=float(macd.iloc[-1]); cs=float(sig.iloc[-1])
+        ch=float(hst.iloc[-1]); ph=float(hst.iloc[-2])
+        cu=float(upper.iloc[-1]); cl=float(lower.iloc[-1]); csma=float(sma20.iloc[-1])
+        bb_pct=(cp-cl)/(cu-cl) if (cu-cl)!=0 else 0.5
+        msig='BULLISH' if cm>cs else 'BEARISH'
+        cross='GOLDEN CROSS' if ch>0 and ph<=0 else 'DEATH CROSS' if ch<0 and ph>=0 else None
+        bsig='OVERBOUGHT' if cp>cu else 'OVERSOLD' if cp<cl else ('BULLISH' if cp>csma else 'BEARISH')
+        return {'macd':{'line':round(cm,2),'signal':round(cs,2),'hist':round(ch,2),'signal_label':msig,'cross':cross},
+                'bb':{'upper':round(cu,0),'mid':round(csma,0),'lower':round(cl,0),'pct_b':round(bb_pct,2),'signal':bsig}}
+    except: return None
+
+def calculate_sortino(ticker):
+    """Sortino Ratio"""
+    try:
+        hist=yf.Ticker(f"{ticker}.JK").history(period='1y')['Close']
+        ret=hist.pct_change().dropna()
+        if len(ret)==0: return None
+        ann_ret=ret.mean()*252; down=ret[ret<0]
+        down_std=down.std()*np.sqrt(252) if len(down)>0 else 0
+        return round((ann_ret-0.065)/down_std,3) if down_std else None
+    except: return None
+
+def calculate_sharpe(ticker):
+    """Sharpe Ratio"""
+    try:
+        hist=yf.Ticker(f"{ticker}.JK").history(period='1y')['Close']
+        ret=hist.pct_change().dropna()
+        if len(ret)==0: return None
+        ann_ret=ret.mean()*252; ann_std=ret.std()*np.sqrt(252)
+        return round((ann_ret-0.065)/ann_std,3) if ann_std else None
+    except: return None
+
+def calculate_rvol(ticker):
+    """Relative Volume vs 20-day average"""
+    try:
+        hist=yf.Ticker(f"{ticker}.JK").history(period='3mo')
+        if len(hist)<21: return None
+        avg=float(hist['Volume'].iloc[:-1].tail(20).mean())
+        today=float(hist['Volume'].iloc[-1])
+        if avg==0: return None
+        rvol=today/avg
+        sig='SANGAT TINGGI' if rvol>3 else 'TINGGI' if rvol>2 else 'NORMAL' if rvol>0.7 else 'RENDAH'
+        return {'rvol':round(rvol,2),'today':int(today),'avg':int(avg),'signal':sig}
+    except: return None
+
+def calculate_fcf_yield(ticker):
+    """FCF Yield = Free Cash Flow / Market Cap"""
+    try:
+        info=yf.Ticker(f"{ticker}.JK").info
+        fcf=info.get('freeCashflow'); mcap=info.get('marketCap')
+        if not fcf or not mcap or mcap==0: return None
+        fcf,mcap=float(fcf),float(mcap); y=fcf/mcap
+        sig='MENARIK' if y>0.05 else 'NETRAL' if y>0.02 else ('RENDAH' if y>0 else 'NEGATIF')
+        return {'fcf':fcf,'mcap':mcap,'yield':round(y,4),'signal':sig}
+    except: return None
+
+def calculate_composite(ticker, info, piotroski, altman, sharpe, sortino, rvol_data):
+    """Composite Investment Score 0-100"""
+    try:
+        pe=min(float(info.get('trailingPE') or 50),100)
+        pb=min(float(info.get('priceToBook') or 5),20)
+        roe=float(info.get('returnOnEquity') or 0)*100
+        cr=float(info.get('currentRatio') or 1)
+        de=float(info.get('debtToEquity') or 100)
+        val_sc=max(0,min(30,(50-pe)/50*30)) if pe>0 else 0
+        prof_sc=min(25,roe*0.8) if roe>0 else 0
+        hlth_sc=max(0,min(20,cr/3*20)-(de/100-1)*5 if cr>0 else 0)
+        f_base=(val_sc+prof_sc+hlth_sc)/75*100
+        p_bonus=(piotroski['score']/9*100) if piotroski else 50
+        fund=f_base*0.5+p_bonus*0.5
+
+        mb=calculate_macd_bb(ticker)
+        tech=50
+        if mb:
+            bb_t=max(0,100-mb['bb']['pct_b']*100)
+            macd_t=70 if mb['macd']['signal_label']=='BULLISH' else 30
+            tech=bb_t*0.5+macd_t*0.5
+
+        risk=50
+        if sharpe is not None: risk=max(0,min(80,40+sharpe*15))
+        if sortino is not None:
+            sor=max(0,min(80,40+sortino*15))
+            risk=(risk+sor)/2
+        if altman:
+            if altman['zone']=='AMAN':   risk=min(100,risk+15)
+            elif altman['zone']=='BAHAYA': risk=max(0,risk-30)
+
+        try:
+            h=yf.Ticker(f"{ticker}.JK").history(period='1y')['Close']
+            m1=(h.iloc[-1]/h.iloc[-22]-1)*100 if len(h)>22 else 0
+            m3=(h.iloc[-1]/h.iloc[-66]-1)*100 if len(h)>66 else 0
+            m6=(h.iloc[-1]/h.iloc[-126]-1)*100 if len(h)>126 else 0
+            mom=max(0,min(100,50+m1*0.3+m3*0.4+m6*0.3))
+        except: mom=50
+
+        sent=50
+        if rvol_data: sent=max(0,min(90,50+(rvol_data['rvol']-1)*20))
+        rec=(info.get('recommendationKey') or '').lower().replace('_','')
+        boosts={'strongbuy':20,'buy':10,'hold':0,'neutral':0,'sell':-15,'strongsell':-25}
+        sent=max(0,min(100,sent+boosts.get(rec,0)))
+
+        final=round(min(100,max(0,fund*0.30+tech*0.25+risk*0.20+mom*0.15+sent*0.10)),1)
+        if   final>=70: sig,cls='STRONG BUY','c-sb'
+        elif final>=60: sig,cls='BUY','c-b'
+        elif final>=45: sig,cls='HOLD','c-h'
+        elif final>=35: sig,cls='SELL','c-s'
+        else:           sig,cls='STRONG SELL','c-ss'
+        return {'final':final,'signal':sig,'cls':cls,
+                'components':{'Fundamental':round(fund,1),'Technical':round(tech,1),'Risk':round(risk,1),'Momentum':round(mom,1),'Sentiment':round(sent,1)}}
+    except: return None
 
 # ─── HELPER FUNCTIONS ───
 def df_to_dict(df):
@@ -496,7 +921,16 @@ def analyze():
             return jsonify({"error": f"Data emiten {ticker} tidak ditemukan di IHSG."})
         
         clean = {k: (None if isinstance(v, float) and pd.isna(v) else v) for k, v in info.items()}
-        
+
+        sharpe    = calculate_sharpe(ticker)
+        sortino   = calculate_sortino(ticker)
+        piotroski = calculate_piotroski(ticker)
+        altman    = calculate_altman_z(ticker)
+        macd_bb   = calculate_macd_bb(ticker)
+        rvol      = calculate_rvol(ticker)
+        fcf_yield = calculate_fcf_yield(ticker)
+        composite = calculate_composite(ticker, info, piotroski, altman, sharpe, sortino, rvol)
+
         return jsonify({
             "ticker":        ticker,
             "updated":       datetime.now(timezone(timedelta(hours=7))).strftime("%d/%m/%Y %H:%M"),
@@ -505,6 +939,14 @@ def analyze():
             "balance_sheet": df_to_dict(stock.balance_sheet),
             "cashflow":      df_to_dict(stock.cashflow),
             "quarterly":     df_to_dict(stock.quarterly_financials),
+            "piotroski":     piotroski,
+            "altman":        altman,
+            "macd_bb":       macd_bb,
+            "rvol":          rvol,
+            "fcf_yield":     fcf_yield,
+            "sharpe":        sharpe,
+            "sortino":       sortino,
+            "composite":     composite,
         })
     except Exception as e:
         print(f"ERROR: {str(e)}")
