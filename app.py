@@ -14,7 +14,8 @@ HTML = '''<!DOCTYPE html>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>IDX Analyzer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Mono:wght@400;700&family=Syne:wght@400;600;700;800&display=swap" rel="stylesheet">
 <style>
 [data-theme="dark"] {
   --bg:#0a0a0f; --surface:#111118; --surface2:#1a1a24; --card:#13131e;
@@ -250,6 +251,24 @@ body::before{content:'';position:fixed;inset:0;background-image:linear-gradient(
 .rvol-bar-track{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;margin:8px 0;}
 .rvol-bar-fill{height:100%;background:linear-gradient(90deg,var(--accent2),var(--accent));border-radius:4px;transition:width .4s;}
 .rvol-sig{font-size:11px;font-weight:700;padding:3px 8px;border-radius:2px;letter-spacing:1px;display:inline-block;}
+
+/* ── FONT SYSTEM ─────────────────────────────────────────────────────────
+   Syne       → brand, section titles, buttons (distinctive, techy UI)
+   Inter      → data labels & descriptions (readable, clean, modern)
+   Space Mono → all numeric values & codes (precise, terminal feel)
+   ─────────────────────────────────────────────────────────────────────── */
+.td-label{font-family:'Inter',sans-serif!important;font-size:12px;font-weight:500;letter-spacing:0;}
+.sl{font-family:'Inter',sans-serif!important;font-size:11px;font-weight:500;letter-spacing:0;}
+.rec-info{font-family:'Inter',sans-serif!important;font-size:12px;line-height:1.9;}
+.tech-card-title{font-family:'Inter',sans-serif!important;font-size:11px;font-weight:600;letter-spacing:.5px;}
+.tech-row{font-size:12px;}
+.tech-row-label{font-family:'Inter',sans-serif;font-size:12px;font-weight:500;}
+.fscore-label{font-family:'Inter',sans-serif!important;font-size:11px;font-weight:500;letter-spacing:0;}
+.cbar-label{font-family:'Inter',sans-serif!important;font-size:11px;font-weight:500;letter-spacing:0;width:95px;}
+.altman-labels{font-family:'Inter',sans-serif!important;font-size:10px;}
+.no-data{font-family:'Inter',sans-serif!important;font-size:12px;font-weight:500;}
+.desc-text{font-family:'Inter',sans-serif;font-size:13px;line-height:1.9;color:var(--muted);}
+.caption-label{font-family:'Inter',sans-serif;font-size:11px;color:var(--muted);font-weight:500;}
 </style>
 </head>
 <body>
@@ -401,11 +420,11 @@ function renderComposite(c) {
   return `<div class="composite-card">
     <div>
       <div class="composite-score-num ${c.final>=70?'pos':c.final<35?'neg':''}">${c.final}</div>
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;">/ 100</div>
+      <div class="caption-label" style="margin-top:4px;">/ 100</div>
     </div>
     <div class="composite-info">
       <div class="composite-signal ${c.cls}">${c.signal}</div>
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);">Skor Keputusan Komprehensif</div>
+      <div class="caption-label">Skor Keputusan Komprehensif</div>
     </div>
     <div class="composite-bars">
       ${Object.entries(c.components).map(([name,val])=>`<div class="cbar-row">
@@ -423,7 +442,7 @@ function renderPiotroski(p) {
     <div class="fscore-num ${p.score>=7?'pos':p.score>=5?'':'neg'}">${p.score}<span style="font-size:20px;color:var(--muted)">/9</span></div>
     <div>
       <div class="fscore-rating ${rCls}">${p.rating}</div>
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:4px;">Piotroski F-Score</div>
+      <div class="caption-label" style="margin-top:4px;">Piotroski F-Score</div>
     </div>
   </div>
   <div class="fscore-grid">
@@ -442,7 +461,7 @@ function renderAltman(a) {
     <div>
       <div class="altman-score ${sCls}">${a.z_score}</div>
       <div class="altman-zone ${zCls}">${a.zone}</div>
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted);margin-top:6px;">${a.desc}</div>
+      <div class="caption-label" style="margin-top:6px;">${a.desc}</div>
     </div>
     <div class="altman-gauge">
       <div class="altman-scale"><div class="altman-red"></div><div class="altman-yellow"></div><div class="altman-green"></div></div>
@@ -487,7 +506,7 @@ function renderRvol(rv) {
       <div class="rvol-sig badge ${sc}" style="margin-top:6px">${rv.signal}</div>
     </div>
     <div class="rvol-bar-wrap">
-      <div style="font-family:'Space Mono',monospace;font-size:10px;color:var(--muted)">Relative Volume vs 20d Avg</div>
+      <div class="caption-label">Relative Volume vs 20d Avg</div>
       <div class="rvol-bar-track"><div class="rvol-bar-fill" style="width:${barW}%"></div></div>
       <div class="tech-row"><span class="tech-row-label">Volume Hari Ini</span><span>${(rv.today/1e6).toFixed(2)}M</span></div>
       <div class="tech-row"><span class="tech-row-label">Avg 20 Hari</span><span>${(rv.avg/1e6).toFixed(2)}M</span></div>
