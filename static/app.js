@@ -676,44 +676,42 @@ function renderKeyLevels(kl) {
 
 function renderOutlook(ol) {
   if (!ol) return '<p class="no-data">Data tidak tersedia.</p>';
+  var actionBadge = ol.action_cls === 'bull' ? 'bg' : ol.action_cls === 'bear' ? 'br' : 'by';
   var actionColor = ol.action_cls === 'bull' ? 'var(--pos)' : ol.action_cls === 'bear' ? 'var(--neg)' : 'var(--warn)';
-  var actionIcon  = ol.action_cls === 'bull' ? '⚡' : ol.action_cls === 'bear' ? '🔴' : '⏸️';
 
-  function infoRow(label, val) {
-    return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);">' +
-      '<span style="font-size:11px;color:var(--text-secondary);">' + label + '</span>' +
-      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:600;">' + val + '</span>' +
-    '</div>';
-  }
-
-  return '<div style="padding:4px 0;">' +
-    '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(52,211,153,0.07);border-left:3px solid var(--pos);">' +
-        '<span style="font-size:14px;">🟢</span>' +
-        '<span style="font-size:11px;"><strong style="color:var(--pos);">BULL</strong>&nbsp;&nbsp;' + ol.bull + '</span>' +
-      '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(248,113,113,0.07);border-left:3px solid var(--neg);">' +
-        '<span style="font-size:14px;">🔴</span>' +
-        '<span style="font-size:11px;"><strong style="color:var(--neg);">BEAR</strong>&nbsp;&nbsp;' + ol.bear + '</span>' +
-      '</div>' +
-      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(96,165,250,0.07);border-left:3px solid ' + actionColor + ';">' +
-        '<span style="font-size:14px;">' + actionIcon + '</span>' +
-        '<span style="font-size:11px;"><strong style="color:' + actionColor + ';">AKSI</strong>&nbsp;&nbsp;' +
-          ol.action + ' di zona ' + rpFmt(ol.entry_low) + '–' + rpFmt(ol.entry_high) +
-        '</span>' +
-      '</div>' +
+  var scenarios = '<div class="consensus-list" style="margin-bottom:4px;">' +
+    '<div class="consensus-row">' +
+      '<span class="consensus-name" style="color:var(--pos);">🟢 BULL</span>' +
+      '<span style="font-size:11px;color:var(--text-secondary);flex:1;">' + ol.bull + '</span>' +
     '</div>' +
-    '<div style="background:var(--surface);border-radius:10px;padding:4px 12px;">' +
-      infoRow('Entry', rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high)) +
-      infoRow('Stop Loss', rpFmt(ol.stop_loss) + '&nbsp;&nbsp;<span style="color:var(--neg);font-size:10px;">(' + pctFmt(-ol.sl_pct) + ' dari entry tengah)</span>') +
-      infoRow('Target 1', rpFmt(ol.target1) + '&nbsp;&nbsp;<span style="color:var(--pos);font-size:10px;">(' + pctFmt(ol.t1_pct, true) + ' dari entry tengah)</span>') +
-      infoRow('Target 2', rpFmt(ol.target2) + '&nbsp;&nbsp;<span style="color:var(--pos);font-size:10px;">(' + pctFmt(ol.t2_pct, true) + ' dari entry tengah)</span>') +
-      '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;">' +
-        '<span style="font-size:11px;color:var(--text-secondary);">R/R Ratio</span>' +
-        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:' + actionColor + ';">1 : ' + ol.rr_ratio + '</span>' +
-      '</div>' +
+    '<div class="consensus-row">' +
+      '<span class="consensus-name" style="color:var(--neg);">🔴 BEAR</span>' +
+      '<span style="font-size:11px;color:var(--text-secondary);flex:1;">' + ol.bear + '</span>' +
+    '</div>' +
+    '<div class="consensus-row">' +
+      '<span class="consensus-name" style="color:' + actionColor + ';">⚡ AKSI</span>' +
+      '<span class="badge ' + actionBadge + '">' + ol.action + '</span>' +
+      '<span style="font-size:11px;color:var(--text-secondary);">di zona ' + rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high) + '</span>' +
     '</div>' +
   '</div>';
+
+  function olRow(label, val, note) {
+    return '<tr>' +
+      '<td class="td-label">' + label + '</td>' +
+      '<td class="td-val">' + val + '</td>' +
+      '<td class="td-rating" style="font-size:11px;">' + (note || '') + '</td>' +
+    '</tr>';
+  }
+  var rrBadge = badge(ol.rr_ratio >= 2 ? '🟢 Baik' : ol.rr_ratio >= 1 ? '🟡 Cukup' : '🔴 Rendah');
+  var tbl = '<table class="data-table">' +
+    olRow('Entry', rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high), '') +
+    olRow('Stop Loss', rpFmt(ol.stop_loss), '<span style="color:var(--neg);">' + pctFmt(-ol.sl_pct) + '</span>') +
+    olRow('Target 1',  rpFmt(ol.target1),  '<span style="color:var(--pos);">' + pctFmt(ol.t1_pct, true) + '</span>') +
+    olRow('Target 2',  rpFmt(ol.target2),  '<span style="color:var(--pos);">' + pctFmt(ol.t2_pct, true) + '</span>') +
+    olRow('R/R Ratio', '1 : ' + ol.rr_ratio, rrBadge) +
+  '</table>';
+
+  return scenarios + tbl;
 }
 
 function render(d) {
