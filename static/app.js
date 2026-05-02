@@ -679,39 +679,51 @@ function renderOutlook(ol) {
   var actionBadge = ol.action_cls === 'bull' ? 'bg' : ol.action_cls === 'bear' ? 'br' : 'by';
   var actionColor = ol.action_cls === 'bull' ? 'var(--pos)' : ol.action_cls === 'bear' ? 'var(--neg)' : 'var(--warn)';
 
-  var scenarios = '<div class="consensus-list" style="margin-bottom:4px;">' +
-    '<div class="consensus-row">' +
-      '<span class="consensus-name" style="color:var(--pos);">🟢 BULL</span>' +
-      '<span style="font-size:11px;color:var(--text-secondary);flex:1;">' + ol.bull + '</span>' +
-    '</div>' +
-    '<div class="consensus-row">' +
-      '<span class="consensus-name" style="color:var(--neg);">🔴 BEAR</span>' +
-      '<span style="font-size:11px;color:var(--text-secondary);flex:1;">' + ol.bear + '</span>' +
-    '</div>' +
-    '<div class="consensus-row">' +
-      '<span class="consensus-name" style="color:' + actionColor + ';">⚡ AKSI</span>' +
-      '<span class="badge ' + actionBadge + '">' + ol.action + '</span>' +
-      '<span style="font-size:11px;color:var(--text-secondary);">di zona ' + rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high) + '</span>' +
+  function scenario(icon, label, color, text) {
+    return '<div style="display:flex;align-items:flex-start;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);">' +
+      '<span style="font-size:13px;line-height:1.4;flex-shrink:0;">' + icon + '</span>' +
+      '<div>' +
+        '<div style="font-size:11px;font-weight:700;color:' + color + ';margin-bottom:2px;">' + label + '</div>' +
+        '<div style="font-size:11px;color:var(--text-secondary);line-height:1.5;">' + text + '</div>' +
+      '</div>' +
+    '</div>';
+  }
+
+  var left = '<div style="flex:1;min-width:0;">' +
+    scenario('🟢', 'BULL', 'var(--pos)', ol.bull) +
+    scenario('🔴', 'BEAR', 'var(--neg)', ol.bear) +
+    '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;">' +
+      '<span style="font-size:13px;">⚡</span>' +
+      '<div>' +
+        '<div style="font-size:11px;font-weight:700;color:' + actionColor + ';margin-bottom:4px;">AKSI</div>' +
+        '<span class="badge ' + actionBadge + '">' + ol.action + '</span>' +
+        '<span style="font-size:11px;color:var(--text-secondary);margin-left:8px;">di zona ' + rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high) + '</span>' +
+      '</div>' +
     '</div>' +
   '</div>';
 
-  function olRow(label, val, note) {
-    return '<tr>' +
-      '<td class="td-label">' + label + '</td>' +
-      '<td class="td-val">' + val + '</td>' +
-      '<td class="td-rating" style="font-size:11px;">' + (note || '') + '</td>' +
-    '</tr>';
+  function drow(label, val, note, valColor) {
+    return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border);">' +
+      '<span class="td-label" style="width:auto;margin-right:8px;">' + label + '</span>' +
+      '<div style="text-align:right;">' +
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:600;color:' + (valColor || 'var(--text)') + ';">' + val + '</span>' +
+        (note ? '<span style="font-size:10px;color:var(--text-secondary);margin-left:6px;">' + note + '</span>' : '') +
+      '</div>' +
+    '</div>';
   }
-  var rrBadge = badge(ol.rr_ratio >= 2 ? '🟢 Baik' : ol.rr_ratio >= 1 ? '🟡 Cukup' : '🔴 Rendah');
-  var tbl = '<table class="data-table">' +
-    olRow('Entry', rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high), '') +
-    olRow('Stop Loss', rpFmt(ol.stop_loss), '<span style="color:var(--neg);">' + pctFmt(-ol.sl_pct) + '</span>') +
-    olRow('Target 1',  rpFmt(ol.target1),  '<span style="color:var(--pos);">' + pctFmt(ol.t1_pct, true) + '</span>') +
-    olRow('Target 2',  rpFmt(ol.target2),  '<span style="color:var(--pos);">' + pctFmt(ol.t2_pct, true) + '</span>') +
-    olRow('R/R Ratio', '1 : ' + ol.rr_ratio, rrBadge) +
-  '</table>';
+  var rrColor = ol.rr_ratio >= 2 ? 'var(--pos)' : ol.rr_ratio >= 1 ? 'var(--warn)' : 'var(--neg)';
+  var right = '<div style="min-width:200px;padding-left:24px;border-left:1px solid var(--border);">' +
+    drow('Entry', rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high)) +
+    drow('Stop Loss', rpFmt(ol.stop_loss), pctFmt(-ol.sl_pct), 'var(--neg)') +
+    drow('Target 1',  rpFmt(ol.target1),  pctFmt(ol.t1_pct, true), 'var(--pos)') +
+    drow('Target 2',  rpFmt(ol.target2),  pctFmt(ol.t2_pct, true), 'var(--pos)') +
+    '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;">' +
+      '<span class="td-label" style="width:auto;">R/R Ratio</span>' +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:14px;font-weight:700;color:' + rrColor + ';">1 : ' + ol.rr_ratio + '</span>' +
+    '</div>' +
+  '</div>';
 
-  return scenarios + tbl;
+  return '<div style="display:flex;gap:0;padding:4px 20px 4px;">' + left + right + '</div>';
 }
 
 function render(d) {
@@ -721,10 +733,9 @@ function render(d) {
 
   html += renderHero(d);
   html += sec('\uD83D\uDCCC', 'KEY METRICS', renderMetrics(d), true, true);
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  html += sec('\uD83D\uDCCD', 'KEY LEVELS \u2014 Support & Resistance', renderKeyLevels(d.key_levels), true, false);
-  html += sec('\uD83D\uDCC8', 'TRADING OUTLOOK', renderOutlook(d.outlook), true, false);
-  html += '</div>';
+  html += sec('\uD83D\uDCCD', 'KEY LEVELS \u2014 Support & Resistance', renderKeyLevels(d.key_levels), true, true);
+  html += sec('\uD83D\uDCC8', 'TRADING OUTLOOK', renderOutlook(d.outlook), true, true);
+
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
   html += sec('\uD83C\uDFAF', 'TECHNICAL CONSENSUS', renderConsensus(d), true, true);
