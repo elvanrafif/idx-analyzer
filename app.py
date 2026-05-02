@@ -93,15 +93,34 @@ def ai_insights():
 
 @app.route('/api/ai-test')
 def ai_test():
-    import os
-    ok, msg = test_connection()
-    return jsonify({
-        "ok": ok,
-        "message": msg,
-        "model": os.environ.get('GLM_MODEL', 'glm-4-flash'),
-        "base_url": os.environ.get('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
-        "api_key_set": bool(os.environ.get('GLM_API_KEY')),
-    })
+    import os, requests as req, time, jwt as pyjwt
+
+    api_key = os.environ.get('GLM_API_KEY', '')
+    model = os.environ.get('GLM_MODEL', 'GLM-4.5-Flash')
+    url = 'https://open.bigmodel.cn/api/paas/v4/chat/completions'
+    payload = {"model": model, "messages": [{"role": "user", "content": "Say OK"}], "max_tokens": 50}
+
+    results = {}
+
+    # test A: raw key as Bearer
+    try:
+        r = req.post(url, json=payload, headers={"Authorization": f"Bearer {api_key}", "Content-Type": "application/json"}, timeout=15)
+        results['raw_key'] = {"status": r.status_code, "body": r.json()}
+    except Exception as e:
+        results['raw_key'] = {"error": str(e)}
+
+    # test B: JWT token
+    try:
+        key_id, secret = api_key.split('.', 1)
+        now_ms = int(time.time() * 1000)
+        token = pyjwt.encode({"api_key": key_id, "exp": now_ms + 60000, "timestamp": now_ms},
+                              secret, algorithm="HS256", headers={"alg": "HS256", "sign_type": "SIGN"})
+        r2 = req.post(url, json=payload, headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"}, timeout=15)
+        results['jwt'] = {"status": r2.status_code, "body": r2.json()}
+    except Exception as e:
+        results['jwt'] = {"error": str(e)}
+
+    return jsonify(results)
 
 
 if __name__ == '__main__':
