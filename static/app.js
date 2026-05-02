@@ -147,10 +147,11 @@ function fetchAIInsight(ticker, section, data) {
   var cacheKey = 'ai_' + ticker + '_' + section;
   var cached = sessionStorage.getItem(cacheKey);
   if (cached) {
-    return Promise.resolve('<div class="ai-insight"><div class="ai-label">AI INSIGHT</div><div class="ai-text">' + cached + '</div></div>');
+    insertAIBox(section, '<div class="ai-insight"><div class="ai-label">\uD83E\uDD16 AI INSIGHT</div><div class="ai-text">' + cached + '</div></div>');
+    return;
   }
   var placeholderId = 'ai-' + section + '-' + Math.random().toString(36).slice(2, 8);
-  var placeholder = '<div class="ai-insight" id="' + placeholderId + '"><div class="ai-label">AI INSIGHT</div><div class="ai-text ai-loading">Memuat insight...</div></div>';
+  insertAIBox(section, '<div class="ai-insight" id="' + placeholderId + '"><div class="ai-label">\uD83E\uDD16 AI INSIGHT</div><div class="ai-text ai-loading">Memuat insight...</div></div>');
 
   fetch('/api/ai-insight', {
     method: 'POST',
@@ -173,8 +174,67 @@ function fetchAIInsight(ticker, section, data) {
     var el3 = document.getElementById(placeholderId);
     if (el3) el3.style.display = 'none';
   });
+}
 
-  return Promise.resolve(placeholder);
+function insertAIBox(section, html) {
+  var targets = {
+    'valuasi': function() {
+      var panels = document.querySelectorAll('.tab-panel');
+      if (panels.length > 0) panels[0].insertAdjacentHTML('beforeend', html);
+    },
+    'profitabilitas': function() {
+      var panels = document.querySelectorAll('.tab-panel');
+      if (panels.length > 1) panels[1].insertAdjacentHTML('beforeend', html);
+    },
+    'kesehatan': function() {
+      var panels = document.querySelectorAll('.tab-panel');
+      if (panels.length > 2) panels[2].insertAdjacentHTML('beforeend', html);
+    },
+    'dividen': function() {
+      var panels = document.querySelectorAll('.tab-panel');
+      if (panels.length > 3) panels[3].insertAdjacentHTML('beforeend', html);
+    },
+    'composite': function() {
+      var sections = document.querySelectorAll('.section');
+      if (sections.length > 2) sections[2].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+    },
+    'consensus': function() {
+      var sections = document.querySelectorAll('.section');
+      if (sections.length > 1) sections[1].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+    },
+    'scoring': function() {
+      var sections = document.querySelectorAll('.section');
+      if (sections.length > 4) sections[4].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+    },
+    'technical': function() {
+      var sections = document.querySelectorAll('.section');
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('TECHNICAL') >= 0) {
+          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+          return;
+        }
+      }
+    },
+    'risk': function() {
+      var sections = document.querySelectorAll('.section');
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('RISK') >= 0) {
+          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+          return;
+        }
+      }
+    },
+    'financial': function() {
+      var sections = document.querySelectorAll('.section');
+      for (var i = 0; i < sections.length; i++) {
+        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('FINANCIAL') >= 0) {
+          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+          return;
+        }
+      }
+    }
+  };
+  if (targets[section]) targets[section]();
 }
 
 function typeText(el, text) {
@@ -614,9 +674,6 @@ function render(d) {
 
   fetchAIInsight(ticker, 'valuasi', {
     pe: i.trailingPE, pb: i.priceToBook, peg: i.pegRatio, ps: i.priceToSalesTrailing12Months
-  }).then(function(ai) {
-    var el = document.getElementById('result').querySelector('.tab-panel.active');
-    if (el) el.insertAdjacentHTML('beforeend', ai);
   });
 
   fetchAIInsight(ticker, 'composite', {
@@ -627,9 +684,6 @@ function render(d) {
     risk: d.composite ? d.composite.components.Risk : '',
     mom: d.composite ? d.composite.components.Momentum : '',
     sent: d.composite ? d.composite.components.Sentiment : ''
-  }).then(function(ai) {
-    var compositeSection = document.getElementById('result').querySelectorAll('.section')[2];
-    if (compositeSection) compositeSection.querySelector('.section-body').insertAdjacentHTML('beforeend', ai);
   });
 
   fetchAIInsight(ticker, 'scoring', {
@@ -637,8 +691,24 @@ function render(d) {
     frating: d.piotroski ? d.piotroski.rating : '',
     zscore: d.altman ? d.altman.z_score : '',
     zzone: d.altman ? d.altman.zone : ''
-  }).then(function(ai) {
-    var altmanSection = document.getElementById('result').querySelectorAll('.section')[4];
-    if (altmanSection) altmanSection.querySelector('.section-body').insertAdjacentHTML('beforeend', ai);
+  });
+
+  fetchAIInsight(ticker, 'consensus', {
+    buy_count: d.composite ? 'TODO' : '0',
+    neut_count: '0',
+    sell_count: '0',
+    verdict: 'N/A',
+    details: 'See consensus section'
+  });
+
+  fetchAIInsight(ticker, 'technical', {
+    macd_signal: d.macd_bb ? d.macd_bb.macd.signal_label : '',
+    rsi_val: d.rsi ? d.rsi.value : '',
+    rsi_signal: d.rsi ? d.rsi.signal : '',
+    bb_signal: d.macd_bb ? d.macd_bb.bb.signal : '',
+    bb_pct: d.macd_bb ? (d.macd_bb.bb.pct_b * 100).toFixed(0) : '',
+    bb_bw: d.macd_bb ? d.macd_bb.bb.bandwidth : '',
+    sma50: d.sma ? d.sma.sma50 : '',
+    gc: d.sma ? (d.sma.golden_cross ? 'Yes' : 'No') : ''
   });
 }
