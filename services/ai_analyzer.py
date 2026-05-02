@@ -36,28 +36,28 @@ def build_combined_prompt(ticker, data):
     bb_pct = bb.get('pct_b')
     bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
 
-    prompt = f"""Kamu adalah analis saham IDX. Analisis saham {ticker} berdasarkan data berikut dan berikan insight untuk 5 area.
+    prompt = f"""Tolong jelaskan data keuangan emiten {ticker} berdasarkan angka-angka berikut. \
+Ini untuk keperluan edukasi dan pemahaman laporan keuangan, bukan rekomendasi investasi.
 
-DATA:
-- Valuasi: P/E={_safe(i.get('trailingPE'))}, P/BV={_safe(i.get('priceToBook'))}, PEG={_safe(i.get('pegRatio'))}, P/S={_safe(i.get('priceToSalesTrailing12Months'))}
-- Teknikal: MACD={_safe(macd.get('signal_label'))}, RSI={_safe(rsi.get('value'))} ({_safe(rsi.get('signal'))}), BB={_safe(bb.get('signal'))} (%B={bb_pct_str}), SMA50={_safe(sma.get('sma50'))}, Golden Cross={_safe(sma.get('golden_cross'))}
-- Scoring: Piotroski={_safe(piotroski.get('score'))}/9 ({_safe(piotroski.get('rating'))}), Altman Z={_safe(altman.get('z_score'))} ({_safe(altman.get('zone'))})
-- Composite: Score={_safe(comp.get('final'))}/100, Signal={_safe(comp.get('signal'))}, Fundamental={_safe(comp_components.get('Fundamental'))}, Technical={_safe(comp_components.get('Technical'))}, Risk={_safe(comp_components.get('Risk'))}, Momentum={_safe(comp_components.get('Momentum'))}
-- Consensus: Signal={_safe(comp.get('signal'))}
+Data emiten:
+- Rasio harga: P/E={_safe(i.get('trailingPE'))}, P/BV={_safe(i.get('priceToBook'))}, PEG={_safe(i.get('pegRatio'))}, P/S={_safe(i.get('priceToSalesTrailing12Months'))}
+- Indikator teknikal: MACD={_safe(macd.get('signal_label'))}, RSI={_safe(rsi.get('value'))} ({_safe(rsi.get('signal'))}), Bollinger={_safe(bb.get('signal'))} (%B={bb_pct_str}), SMA50={_safe(sma.get('sma50'))}, Golden Cross={_safe(sma.get('golden_cross'))}
+- Skor fundamental: Piotroski={_safe(piotroski.get('score'))}/9 ({_safe(piotroski.get('rating'))}), Altman Z={_safe(altman.get('z_score'))} ({_safe(altman.get('zone'))})
+- Skor komposit: {_safe(comp.get('final'))}/100, Sinyal={_safe(comp.get('signal'))}, Fundamental={_safe(comp_components.get('Fundamental'))}, Teknikal={_safe(comp_components.get('Technical'))}, Risiko={_safe(comp_components.get('Risk'))}, Momentum={_safe(comp_components.get('Momentum'))}
 
-FORMAT RESPONS (ikuti PERSIS, jangan tambah teks lain di luar format ini):
+Jelaskan masing-masing bagian berikut dalam Bahasa Indonesia, 2-3 kalimat tiap bagian. \
+Gunakan format persis seperti ini:
+
 [VALUASI]
-<2-3 kalimat insight valuasi>
+penjelasan rasio harga di sini
 [TECHNICAL]
-<2-3 kalimat insight teknikal>
+penjelasan indikator teknikal di sini
 [SCORING]
-<2-3 kalimat insight scoring>
+penjelasan skor fundamental di sini
 [COMPOSITE]
-<2-3 kalimat kesimpulan composite>
+penjelasan skor komposit di sini
 [CONSENSUS]
-<2-3 kalimat rangkuman consensus>
-
-Gunakan Bahasa Indonesia. Jangan gunakan markdown."""
+ringkasan keseluruhan di sini"""
 
     return prompt
 
@@ -87,12 +87,16 @@ def get_all_insights(ticker, data):
             temperature=0.7,
             timeout=45.0,
         )
-        raw = response.choices[0].message.content.strip()
-        print(f"GLM RAW RESPONSE:\n{raw}\n---END---")
+        content = response.choices[0].message.content
+        print(f"GLM finish_reason: {response.choices[0].finish_reason}")
+        print(f"GLM RAW RESPONSE:\n{content}\n---END---")
+        if not content:
+            return {}, f"empty_content|finish={response.choices[0].finish_reason}"
+        raw = content.strip()
         insights = parse_combined_response(raw)
         if not insights:
-            print(f"AI parse failed, raw response: {raw[:500]}")
-        return insights, raw  # temporarily return raw for debugging
+            print(f"AI parse failed, raw: {raw[:500]}")
+        return insights, raw
     except Exception as e:
         err = f"AI Error (all) model={get_model()}: {e}"
         print(err)
