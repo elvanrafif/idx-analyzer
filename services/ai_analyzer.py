@@ -6,42 +6,71 @@ from openai import OpenAI
 
 SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus', 'key_levels']
 
+SYSTEM_PROMPT = "Kamu adalah asisten yang menjelaskan data keuangan secara edukatif."
 
-def _generate_token(api_key: str) -> str:
-    """Generate ZhipuAI JWT from {id}.{secret} key format."""
+
+# ── GLM (ZhipuAI) ────────────────────────────────────────────────────────────
+
+def _generate_glm_token(api_key: str) -> str:
     try:
         key_id, secret = api_key.split('.', 1)
     except ValueError:
-        return api_key  # not the {id}.{secret} format, use as-is
+        return api_key
     now_ms = int(time.time() * 1000)
-    payload = {
-        "api_key": key_id,
-        "exp": now_ms + 600_000,  # 10 minutes
-        "timestamp": now_ms,
-    }
     return jwt.encode(
-        payload,
+        {"api_key": key_id, "exp": now_ms + 600_000, "timestamp": now_ms},
         secret,
         algorithm="HS256",
         headers={"alg": "HS256", "sign_type": "SIGN"},
     )
 
 
-def get_client():
-    raw_key = os.environ.get('GLM_API_KEY', '')
-    token = _generate_token(raw_key)
+def _glm_client():
+    token = _generate_glm_token(os.environ.get('GLM_API_KEY', ''))
     return OpenAI(
         api_key=token,
         base_url=os.environ.get('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
     )
 
 
-def get_model():
+def _glm_model():
     return os.environ.get('GLM_MODEL', 'GLM-4.5-Flash')
 
 
+# ── Google Gemini ─────────────────────────────────────────────────────────────
+
+def _google_client():
+    return OpenAI(
+        api_key=os.environ.get('GOOGLE_API_KEY', ''),
+        base_url='https://generativelanguage.googleapis.com/v1beta/openai/',
+    )
+
+
+def _google_model():
+    return os.environ.get('GOOGLE_MODEL', 'gemini-2.0-flash')
+
+
+# ── Shared ────────────────────────────────────────────────────────────────────
+
 def _safe(val):
     return str(val) if val is not None else 'N/A'
+
+
+def _call(client, model, prompt, max_tokens, timeout, label):
+    response = client.chat.completions.create(
+        model=model,
+        messages=[
+            {"role": "system", "content": SYSTEM_PROMPT},
+            {"role": "user", "content": prompt},
+        ],
+        max_tokens=max_tokens,
+        temperature=0.7,
+        timeout=timeout,
+    )
+    content = response.choices[0].message.content
+    finish = response.choices[0].finish_reason
+    print(f"{label} finish={finish}, content_len={len(content) if content else 0}")
+    return content or ''
 
 
 def build_combined_prompt(ticker, data):
@@ -56,11 +85,10 @@ def build_combined_prompt(ticker, data):
     bb = macd_bb.get('bb', {}) or {}
     rsi = d.get('rsi', {}) or {}
     sma = d.get('sma', {}) or {}
+    kl = d.get('key_levels', {}) or {}
 
     bb_pct = bb.get('pct_b')
     bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
-    kl = d.get('key_levels', {}) or {}
-
     price = i.get('regularMarketPrice') or i.get('currentPrice')
     wk52h = i.get('fiftyTwoWeekHigh')
     wk52l = i.get('fiftyTwoWeekLow')
@@ -111,61 +139,58 @@ def parse_combined_response(text):
 
 def get_all_insights(ticker, data):
     prompt = build_combined_prompt(ticker, data)
-    try:
-        client = get_client()
-        model = get_model()
-        response = client.chat.completions.create(
-            model=model,
-            messages=[
-                {"role": "system", "content": "Kamu adalah asisten yang menjelaskan data keuangan secara edukatif."},
-                {"role": "user", "content": prompt},
-            ],
-            max_tokens=4000,
-            temperature=0.7,
-            timeout=60.0,
-        )
-        content = response.choices[0].message.content
-        finish = response.choices[0].finish_reason
-        print(f"GLM finish={finish}, content_len={len(content) if content else 0}")
-        if not content:
-            return {}, f"empty_content|finish={finish}"
-        raw = content.strip()
-        insights = parse_combined_response(raw)
-        if not insights:
-            print(f"Parse failed, raw: {raw[:300]}")
-        return insights, raw
-    except Exception as e:
-        err = f"AI Error model={get_model()}: {e}"
-        print(err)
-        return {}, str(e)
+    errors = []
+
+    # 1. Try GLM
+    if os.environ.get('GLM_API_KEY'):
+        try:
+            raw = _call(_glm_client(), _glm_model(), prompt, max_tokens=4000, timeout=60.0, label='GLM')
+            if raw:
+                insights = parse_combined_response(raw)
+                if insights:
+                    return insights, raw
+                errors.append(f"GLM parse failed: {raw[:100]}")
+            else:
+                errors.append("GLM empty content")
+        except Exception as e:
+            errors.append(f"GLM error: {e}")
+            print(f"GLM failed, trying Google fallback: {e}")
+
+    # 2. Fallback: Google Gemini
+    if os.environ.get('GOOGLE_API_KEY'):
+        try:
+            raw = _call(_google_client(), _google_model(), prompt, max_tokens=1500, timeout=30.0, label='Google')
+            if raw:
+                insights = parse_combined_response(raw)
+                if insights:
+                    return insights, raw
+                errors.append(f"Google parse failed: {raw[:100]}")
+            else:
+                errors.append("Google empty content")
+        except Exception as e:
+            errors.append(f"Google error: {e}")
+            print(f"Google fallback failed: {e}")
+
+    return {}, ' | '.join(errors) or 'no providers configured'
 
 
 def test_connection():
-    try:
-        client = get_client()
-        model = get_model()
-        r1 = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": "Say OK"}],
-            max_tokens=500,
-            timeout=15.0,
-        )
-        basic = r1.choices[0].message.content or ""
-        finish1 = r1.choices[0].finish_reason
+    results = {}
 
-        r2 = client.chat.completions.create(
-            model=model,
-            messages=[{"role": "user", "content": "What does P/E ratio mean? One sentence."}],
-            max_tokens=500,
-            timeout=15.0,
-        )
-        financial = r2.choices[0].message.content or ""
-        finish2 = r2.choices[0].finish_reason
+    if os.environ.get('GLM_API_KEY'):
+        try:
+            r = _call(_glm_client(), _glm_model(), "Say OK in one word.", max_tokens=500, timeout=15.0, label='GLM-test')
+            results['glm'] = {'ok': bool(r), 'response': r[:100], 'model': _glm_model()}
+        except Exception as e:
+            results['glm'] = {'ok': False, 'error': str(e), 'model': _glm_model()}
 
-        return True, {
-            "basic": basic, "finish1": finish1,
-            "financial": financial, "finish2": finish2,
-            "model": model,
-        }
-    except Exception as e:
-        return False, str(e)
+    if os.environ.get('GOOGLE_API_KEY'):
+        try:
+            r = _call(_google_client(), _google_model(), "Say OK in one word.", max_tokens=50, timeout=15.0, label='Google-test')
+            results['google'] = {'ok': bool(r), 'response': r[:100], 'model': _google_model()}
+        except Exception as e:
+            results['google'] = {'ok': False, 'error': str(e), 'model': _google_model()}
+
+    if not results:
+        return False, 'no API keys configured (GLM_API_KEY or GOOGLE_API_KEY)'
+    return True, results
