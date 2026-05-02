@@ -144,7 +144,7 @@ function initTabs() {
 }
 
 function fetchAllAIInsights(ticker, fullData) {
-  var SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus'];
+  var SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus', 'key_levels'];
   var cacheKey = 'ai_all_' + ticker;
   var cached = sessionStorage.getItem(cacheKey);
 
@@ -221,6 +221,7 @@ function insertAIBox(section, html) {
     'piotroski':    function() { byTitle('PIOTROSKI'); },
     'altman':       function() { byTitle('ALTMAN'); },
     'technical':    function() { byTitle('MACD'); },
+    'key_levels':   function() { byTitle('KEY LEVEL'); },
   };
   if (targets[section]) targets[section]();
 }
@@ -626,6 +627,95 @@ function renderRiskAdj(fcf, sortino, sharpe) {
   return rows.length ? dtable(rows) : '<p class="no-data">Data tidak tersedia.</p>';
 }
 
+function rpFmt(x) {
+  if (x == null) return '—';
+  var s = x % 1 === 0 ? x.toLocaleString('id') : x.toFixed(1).replace('.', ',');
+  return 'Rp ' + s;
+}
+
+function pctFmt(x, plus) {
+  if (x == null) return '—';
+  return (plus && x > 0 ? '+' : '') + x.toFixed(1) + '%';
+}
+
+function renderKeyLevels(kl) {
+  if (!kl) return '<p class="no-data">Data tidak tersedia.</p>';
+  var cur = kl.current;
+  var min = kl.s3, max = kl.r3, range = max - min;
+
+  function pct(v) {
+    var d = ((v - cur) / cur * 100);
+    return (d >= 0 ? '+' : '') + d.toFixed(1) + '%';
+  }
+  function bar(v, type) {
+    var w = range > 0 ? Math.min(100, Math.abs(v - cur) / range * 80 + 10) : 50;
+    var color = type === 'r' ? 'var(--neg)' : type === 's' ? 'var(--pos)' : 'var(--accent)';
+    return '<div style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;">' +
+      '<div style="height:100%;border-radius:2px;width:' + w + '%;background:' + color + ';opacity:0.5;"></div></div>';
+  }
+  function row(label, val, type, bold) {
+    var isCur = type === 'cur';
+    return '<div style="display:flex;align-items:center;gap:10px;padding:' + (isCur ? '10px 16px' : '6px 16px') + ';' +
+      (isCur ? 'background:rgba(96,165,250,0.08);border-radius:8px;margin:4px 0;' : '') + '">' +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text-secondary);width:42px;text-align:right;">' + label + '</span>' +
+      (isCur ? '' : bar(val, type)) +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:' + (isCur ? '14px' : '12px') + ';font-weight:' + (isCur ? '700' : '400') + ';color:' +
+        (isCur ? 'var(--accent)' : type === 'r' ? 'var(--neg)' : type === 's' ? 'var(--pos)' : 'var(--text-secondary)') + ';min-width:90px;">' +
+        rpFmt(val) + '</span>' +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text-secondary);min-width:52px;">' +
+        (isCur ? '◉ CURRENT' : pct(val)) + '</span>' +
+    '</div>';
+  }
+
+  return '<div style="padding:8px 0;">' +
+    row('R3', kl.r3, 'r') + row('R2', kl.r2, 'r') + row('R1', kl.r1, 'r') +
+    row('CURRENT', cur, 'cur') +
+    row('S1', kl.s1, 's') + row('S2', kl.s2, 's') + row('S3', kl.s3, 's') +
+  '</div>';
+}
+
+function renderOutlook(ol) {
+  if (!ol) return '<p class="no-data">Data tidak tersedia.</p>';
+  var actionColor = ol.action_cls === 'bull' ? 'var(--pos)' : ol.action_cls === 'bear' ? 'var(--neg)' : 'var(--warn)';
+  var actionIcon  = ol.action_cls === 'bull' ? '⚡' : ol.action_cls === 'bear' ? '🔴' : '⏸️';
+
+  function infoRow(label, val) {
+    return '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;border-bottom:1px solid var(--border);">' +
+      '<span style="font-size:11px;color:var(--text-secondary);">' + label + '</span>' +
+      '<span style="font-family:\'JetBrains Mono\',monospace;font-size:12px;font-weight:600;">' + val + '</span>' +
+    '</div>';
+  }
+
+  return '<div style="padding:4px 0;">' +
+    '<div style="display:flex;flex-direction:column;gap:6px;margin-bottom:16px;">' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(52,211,153,0.07);border-left:3px solid var(--pos);">' +
+        '<span style="font-size:14px;">🟢</span>' +
+        '<span style="font-size:11px;"><strong style="color:var(--pos);">BULL</strong>&nbsp;&nbsp;' + ol.bull + '</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(248,113,113,0.07);border-left:3px solid var(--neg);">' +
+        '<span style="font-size:14px;">🔴</span>' +
+        '<span style="font-size:11px;"><strong style="color:var(--neg);">BEAR</strong>&nbsp;&nbsp;' + ol.bear + '</span>' +
+      '</div>' +
+      '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:8px;background:rgba(96,165,250,0.07);border-left:3px solid ' + actionColor + ';">' +
+        '<span style="font-size:14px;">' + actionIcon + '</span>' +
+        '<span style="font-size:11px;"><strong style="color:' + actionColor + ';">AKSI</strong>&nbsp;&nbsp;' +
+          ol.action + ' di zona ' + rpFmt(ol.entry_low) + '–' + rpFmt(ol.entry_high) +
+        '</span>' +
+      '</div>' +
+    '</div>' +
+    '<div style="background:var(--surface);border-radius:10px;padding:4px 12px;">' +
+      infoRow('Entry', rpFmt(ol.entry_low) + ' – ' + rpFmt(ol.entry_high)) +
+      infoRow('Stop Loss', rpFmt(ol.stop_loss) + '&nbsp;&nbsp;<span style="color:var(--neg);font-size:10px;">(' + pctFmt(-ol.sl_pct) + ' dari entry tengah)</span>') +
+      infoRow('Target 1', rpFmt(ol.target1) + '&nbsp;&nbsp;<span style="color:var(--pos);font-size:10px;">(' + pctFmt(ol.t1_pct, true) + ' dari entry tengah)</span>') +
+      infoRow('Target 2', rpFmt(ol.target2) + '&nbsp;&nbsp;<span style="color:var(--pos);font-size:10px;">(' + pctFmt(ol.t2_pct, true) + ' dari entry tengah)</span>') +
+      '<div style="display:flex;justify-content:space-between;align-items:baseline;padding:6px 0;">' +
+        '<span style="font-size:11px;color:var(--text-secondary);">R/R Ratio</span>' +
+        '<span style="font-family:\'JetBrains Mono\',monospace;font-size:13px;font-weight:700;color:' + actionColor + ';">1 : ' + ol.rr_ratio + '</span>' +
+      '</div>' +
+    '</div>' +
+  '</div>';
+}
+
 function render(d) {
   var i = d.info;
   var ticker = d.ticker;
@@ -633,6 +723,10 @@ function render(d) {
 
   html += renderHero(d);
   html += sec('\uD83D\uDCCC', 'KEY METRICS', renderMetrics(d), true, true);
+  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
+  html += sec('\uD83D\uDCCD', 'KEY LEVELS \u2014 Support & Resistance', renderKeyLevels(d.key_levels), true, false);
+  html += sec('\uD83D\uDCC8', 'TRADING OUTLOOK', renderOutlook(d.outlook), true, false);
+  html += '</div>';
 
   html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
   html += sec('\uD83C\uDFAF', 'TECHNICAL CONSENSUS', renderConsensus(d), true, true);

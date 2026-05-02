@@ -4,7 +4,7 @@ import time
 import jwt
 from openai import OpenAI
 
-SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus']
+SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus', 'key_levels']
 
 
 def _generate_token(api_key: str) -> str:
@@ -59,6 +59,7 @@ def build_combined_prompt(ticker, data):
 
     bb_pct = bb.get('pct_b')
     bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
+    kl = d.get('key_levels', {}) or {}
 
     price = i.get('regularMarketPrice') or i.get('currentPrice')
     wk52h = i.get('fiftyTwoWeekHigh')
@@ -93,7 +94,9 @@ penjelasan khusus Altman Z-Score dan artinya
 [COMPOSITE]
 penjelasan skor komposit dan sinyal keseluruhan
 [CONSENSUS]
-ringkasan akhir dari semua indikator"""
+ringkasan akhir dari semua indikator
+[KEY_LEVELS]
+penjelasan posisi harga terhadap level support dan resistance kunci (S1={_safe(kl.get('s1'))}, S2={_safe(kl.get('s2'))}, R1={_safe(kl.get('r1'))}, R2={_safe(kl.get('r2'))})"""
 
 
 def parse_combined_response(text):

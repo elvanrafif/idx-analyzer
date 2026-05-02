@@ -10,6 +10,7 @@ from indicators.sma import calculate_sma
 from indicators.rvol import calculate_rvol
 from indicators.risk_metrics import calculate_sharpe, calculate_sortino, calculate_fcf_yield
 from indicators.composite import calculate_composite
+from indicators.key_levels import calculate_key_levels, calculate_outlook
 
 load_dotenv()
 app = Flask(__name__)
@@ -50,6 +51,9 @@ def analyze():
             sharpe, sortino, rvol, data['hist_1y']
         )
 
+        key_levels = calculate_key_levels(data['hist_3m'])
+        outlook = calculate_outlook(key_levels, composite)
+
         return jsonify({
             "ticker": ticker,
             "updated": data['updated'],
@@ -68,6 +72,8 @@ def analyze():
             "sharpe": sharpe,
             "sortino": sortino,
             "composite": composite,
+            "key_levels": key_levels,
+            "outlook": outlook,
         })
     except Exception as e:
         print(f"ERROR: {str(e)}")
