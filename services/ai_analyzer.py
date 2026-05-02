@@ -1,5 +1,8 @@
 import os
+import re
 from openai import OpenAI
+
+SECTIONS = ['valuasi', 'technical', 'scoring', 'composite', 'consensus']
 
 
 def get_client():
@@ -13,110 +16,86 @@ def get_model():
     return os.environ.get('GLM_MODEL', 'GLM-4.5-Flash')
 
 
-SECTION_PROMPTS = {
-    'valuasi': (
-        "Analisa valuasi saham {ticker} berdasarkan data berikut: "
-        "P/E {pe}, P/BV {pb}, PEG {peg}, Price to Sales {ps}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown. Langsung tulis insight saja."
-    ),
-    'profitabilitas': (
-        "Analisa profitabilitas saham {ticker}: "
-        "ROE {roe}, ROA {roa}, Net Margin {npm}, Operating Margin {opm}, "
-        "Revenue Growth {rg}, Earnings Growth {eg}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'kesehatan': (
-        "Analisa kesehatan keuangan saham {ticker}: "
-        "Current Ratio {cr}, Quick Ratio {qr}, Debt to Equity {de}, "
-        "Total Debt {td}, Total Cash {tc}, Free Cash Flow {fcf}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'dividen': (
-        "Analisa dividen saham {ticker}: "
-        "Dividend Yield {dy}, Dividend Rate {dr}, Payout Ratio {pr}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'technical': (
-        "Analisa sinyal teknikal saham {ticker}: "
-        "MACD {macd_signal}, RSI {rsi_val} ({rsi_signal}), "
-        "Bollinger Bands {bb_signal} (%B {bb_pct}), Bandwidth {bb_bw}, "
-        "SMA50 {sma50}, Golden Cross {gc}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'scoring': (
-        "Interpretasi scoring saham {ticker}: "
-        "Piotroski F-Score {fscore}/9 ({frating}), Altman Z-Score {zscore} ({zzone}). "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'composite': (
-        "Beri kesimpulan akhir untuk saham {ticker} berdasarkan "
-        "composite score {score}/100 dengan sinyal {signal}. "
-        "Komponen: Fundamental {fund}, Technical {tech}, Risk {risk}, Momentum {mom}, Sentiment {sent}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'consensus': (
-        "Rangkum consensus teknikal saham {ticker}: "
-        "{buy_count} indikator bullish, {neut_count} netral, {sell_count} bearish. "
-        "Verdict: {verdict}. Detail: {details}. "
-        "Berikan insight singkat 2-3 kalimat yang to the point dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-    'financial': (
-        "Tren keuangan saham {ticker} berdasarkan laporan tahunan terakhir. "
-        "Data: {summary}. "
-        "Berikan insight singkat 2-3 kalimat tentang tren yang terlihat dalam Bahasa Indonesia. "
-        "Jangan gunakan format markdown."
-    ),
-}
+def _safe(val):
+    return str(val) if val is not None else 'N/A'
 
 
-def build_prompt(section, ticker, data):
-    template = SECTION_PROMPTS.get(section, '')
-    if not template:
-        return None
-    try:
-        merged = {'ticker': ticker}
-        if isinstance(data, dict):
-            for k, v in data.items():
-                merged[k] = v if v is not None else 'N/A'
-        import re
-        placeholders = set(re.findall(r'\{(\w+)\}', template))
-        safe = {k: str(merged.get(k, 'N/A')) for k in placeholders}
-        return template.format(**safe)
-    except Exception as e:
-        print(f"Prompt build error ({section}): {e}")
-        return None
+def build_combined_prompt(ticker, data):
+    d = data
+    i = d.get('info', {}) or {}
+    comp = d.get('composite', {}) or {}
+    comp_components = comp.get('components', {}) or {}
+    piotroski = d.get('piotroski', {}) or {}
+    altman = d.get('altman', {}) or {}
+    macd_bb = d.get('macd_bb', {}) or {}
+    macd = macd_bb.get('macd', {}) or {}
+    bb = macd_bb.get('bb', {}) or {}
+    rsi = d.get('rsi', {}) or {}
+    sma = d.get('sma', {}) or {}
+
+    bb_pct = bb.get('pct_b')
+    bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
+
+    prompt = f"""Kamu adalah analis saham IDX. Analisis saham {ticker} berdasarkan data berikut dan berikan insight untuk 5 area.
+
+DATA:
+- Valuasi: P/E={_safe(i.get('trailingPE'))}, P/BV={_safe(i.get('priceToBook'))}, PEG={_safe(i.get('pegRatio'))}, P/S={_safe(i.get('priceToSalesTrailing12Months'))}
+- Teknikal: MACD={_safe(macd.get('signal_label'))}, RSI={_safe(rsi.get('value'))} ({_safe(rsi.get('signal'))}), BB={_safe(bb.get('signal'))} (%B={bb_pct_str}), SMA50={_safe(sma.get('sma50'))}, Golden Cross={_safe(sma.get('golden_cross'))}
+- Scoring: Piotroski={_safe(piotroski.get('score'))}/9 ({_safe(piotroski.get('rating'))}), Altman Z={_safe(altman.get('z_score'))} ({_safe(altman.get('zone'))})
+- Composite: Score={_safe(comp.get('final'))}/100, Signal={_safe(comp.get('signal'))}, Fundamental={_safe(comp_components.get('Fundamental'))}, Technical={_safe(comp_components.get('Technical'))}, Risk={_safe(comp_components.get('Risk'))}, Momentum={_safe(comp_components.get('Momentum'))}
+- Consensus: Signal={_safe(comp.get('signal'))}
+
+FORMAT RESPONS (ikuti PERSIS, jangan tambah teks lain di luar format ini):
+[VALUASI]
+<2-3 kalimat insight valuasi>
+[TECHNICAL]
+<2-3 kalimat insight teknikal>
+[SCORING]
+<2-3 kalimat insight scoring>
+[COMPOSITE]
+<2-3 kalimat kesimpulan composite>
+[CONSENSUS]
+<2-3 kalimat rangkuman consensus>
+
+Gunakan Bahasa Indonesia. Jangan gunakan markdown."""
+
+    return prompt
 
 
-def get_ai_insight(section, ticker, data):
-    prompt = build_prompt(section, ticker, data)
-    if not prompt:
-        return None, "No prompt template for section: " + section
+def parse_combined_response(text):
+    results = {}
+    pattern = r'\[(' + '|'.join(s.upper() for s in SECTIONS) + r')\]\s*(.*?)(?=\[(?:' + '|'.join(s.upper() for s in SECTIONS) + r')\]|$)'
+    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
+    for label, content in matches:
+        key = label.lower()
+        results[key] = content.strip()
+    return results
+
+
+def get_all_insights(ticker, data):
+    prompt = build_combined_prompt(ticker, data)
     try:
         client = get_client()
         model = get_model()
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "Kamu adalah analis saham IDX yang ahli. Berikan analisis singkat, tajam, dan to the point."},
+                {"role": "system", "content": "Kamu adalah analis saham IDX yang ahli. Ikuti format respons yang diminta dengan tepat."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=200,
+            max_tokens=800,
             temperature=0.7,
-            timeout=30.0,
+            timeout=45.0,
         )
-        return response.choices[0].message.content.strip(), None
+        raw = response.choices[0].message.content.strip()
+        insights = parse_combined_response(raw)
+        if not insights:
+            print(f"AI parse failed, raw response: {raw[:300]}")
+        return insights, None
     except Exception as e:
-        err = f"AI Error ({section}) model={get_model()}: {e}"
+        err = f"AI Error (all) model={get_model()}: {e}"
         print(err)
-        return None, str(e)
+        return {}, str(e)
 
 
 def test_connection():

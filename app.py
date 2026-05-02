@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from services.yahoo_fetcher import fetch_ticker_data, df_to_dict
-from services.ai_analyzer import get_ai_insight, test_connection
+from services.ai_analyzer import get_all_insights, test_connection
 from indicators.piotroski import calculate_piotroski
 from indicators.altman_z import calculate_altman_z
 from indicators.macd_bb import calculate_macd_bb
@@ -74,23 +74,21 @@ def analyze():
         return jsonify({"error": f"Error teknis: {str(e)}"})
 
 
-@app.route('/api/ai-insight', methods=['POST'])
-def ai_insight():
+@app.route('/api/ai-insights', methods=['POST'])
+def ai_insights():
     try:
         body = request.get_json(silent=True)
         if not body:
-            return jsonify({"insight": None, "error": "empty body"})
-        section = body.get('section', '')
+            return jsonify({"insights": {}, "error": "empty body"})
         ticker = body.get('ticker', '')
         data = body.get('data', {}) or {}
-        insight, err = get_ai_insight(section, ticker, data)
-        if insight:
-            return jsonify({"insight": insight})
-        print(f"AI insight failed [{section}]: {err}")
-        return jsonify({"insight": None, "error": err})
+        insights, err = get_all_insights(ticker, data)
+        if err:
+            print(f"AI insights failed: {err}")
+        return jsonify({"insights": insights, "error": err})
     except Exception as e:
         print(f"AI Route Error: {e}")
-        return jsonify({"insight": None, "error": str(e)})
+        return jsonify({"insights": {}, "error": str(e)})
 
 
 @app.route('/api/ai-test')
