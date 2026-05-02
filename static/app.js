@@ -649,7 +649,7 @@ function renderKeyLevels(kl) {
   }
   function bar(v, type) {
     var w = range > 0 ? Math.min(100, Math.abs(v - cur) / range * 80 + 10) : 50;
-    var color = type === 'r' ? 'var(--neg)' : type === 's' ? 'var(--pos)' : 'var(--accent)';
+    var color = type === 'r' ? 'var(--pos)' : type === 's' ? 'var(--neg)' : 'var(--accent)';
     return '<div style="flex:1;height:4px;border-radius:2px;background:rgba(255,255,255,0.06);overflow:hidden;">' +
       '<div style="height:100%;border-radius:2px;width:' + w + '%;background:' + color + ';opacity:0.5;"></div></div>';
   }
@@ -660,7 +660,7 @@ function renderKeyLevels(kl) {
       '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text-secondary);width:42px;text-align:right;">' + label + '</span>' +
       (isCur ? '' : bar(val, type)) +
       '<span style="font-family:\'JetBrains Mono\',monospace;font-size:' + (isCur ? '14px' : '12px') + ';font-weight:' + (isCur ? '700' : '400') + ';color:' +
-        (isCur ? 'var(--accent)' : type === 'r' ? 'var(--neg)' : type === 's' ? 'var(--pos)' : 'var(--text-secondary)') + ';min-width:90px;">' +
+        (isCur ? 'var(--accent)' : type === 'r' ? 'var(--pos)' : type === 's' ? 'var(--neg)' : 'var(--text-secondary)') + ';min-width:90px;">' +
         rpFmt(val) + '</span>' +
       '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text-secondary);min-width:52px;">' +
         (isCur ? '◉ CURRENT' : pct(val)) + '</span>' +
