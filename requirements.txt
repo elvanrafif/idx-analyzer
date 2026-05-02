@@ -1,5 +1,8 @@
 flask==3.0.3
 yfinance>=0.2.52
 pandas==2.2.2
+numpy
 gunicorn==22.0.0
 curl_cffi>=0.7.0
+openai>=1.0.0
+python-dotenv>=1.0.0
