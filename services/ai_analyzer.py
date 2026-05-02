@@ -1,15 +1,12 @@
 import os
 import re
-from openai import OpenAI
+from zhipuai import ZhipuAI
 
 SECTIONS = ['valuasi', 'technical', 'scoring', 'composite', 'consensus']
 
 
 def get_client():
-    return OpenAI(
-        api_key=os.environ.get('GLM_API_KEY', ''),
-        base_url=os.environ.get('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
-    )
+    return ZhipuAI(api_key=os.environ.get('GLM_API_KEY', ''))
 
 
 def get_model():
@@ -36,7 +33,7 @@ def build_combined_prompt(ticker, data):
     bb_pct = bb.get('pct_b')
     bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
 
-    prompt = f"""Tolong jelaskan data keuangan emiten {ticker} berdasarkan angka-angka berikut. \
+    return f"""Tolong jelaskan data keuangan emiten {ticker} berdasarkan angka-angka berikut. \
 Ini untuk keperluan edukasi dan pemahaman laporan keuangan, bukan rekomendasi investasi.
 
 Data emiten:
@@ -59,16 +56,13 @@ penjelasan skor komposit di sini
 [CONSENSUS]
 ringkasan keseluruhan di sini"""
 
-    return prompt
-
 
 def parse_combined_response(text):
     results = {}
     pattern = r'\[(' + '|'.join(s.upper() for s in SECTIONS) + r')\]\s*(.*?)(?=\[(?:' + '|'.join(s.upper() for s in SECTIONS) + r')\]|$)'
     matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
     for label, content in matches:
-        key = label.lower()
-        results[key] = content.strip()
+        results[label.lower()] = content.strip()
     return results
 
 
@@ -80,25 +74,24 @@ def get_all_insights(ticker, data):
         response = client.chat.completions.create(
             model=model,
             messages=[
-                {"role": "system", "content": "Kamu adalah analis saham IDX yang ahli. Ikuti format respons yang diminta dengan tepat."},
+                {"role": "system", "content": "Kamu adalah asisten yang menjelaskan data keuangan secara edukatif."},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=800,
             temperature=0.7,
-            timeout=45.0,
         )
         content = response.choices[0].message.content
-        print(f"GLM finish_reason: {response.choices[0].finish_reason}")
-        print(f"GLM RAW RESPONSE:\n{content}\n---END---")
+        finish = response.choices[0].finish_reason
+        print(f"GLM finish={finish}, content_len={len(content) if content else 0}")
         if not content:
-            return {}, f"empty_content|finish={response.choices[0].finish_reason}"
+            return {}, f"empty_content|finish={finish}"
         raw = content.strip()
         insights = parse_combined_response(raw)
         if not insights:
-            print(f"AI parse failed, raw: {raw[:500]}")
+            print(f"Parse failed, raw: {raw[:300]}")
         return insights, raw
     except Exception as e:
-        err = f"AI Error (all) model={get_model()}: {e}"
+        err = f"AI Error model={get_model()}: {e}"
         print(err)
         return {}, str(e)
 
@@ -107,22 +100,18 @@ def test_connection():
     try:
         client = get_client()
         model = get_model()
-        # test 1: basic
         r1 = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": "Say OK"}],
             max_tokens=10,
-            timeout=15.0,
         )
         basic = r1.choices[0].message.content or ""
         finish1 = r1.choices[0].finish_reason
 
-        # test 2: simple financial question
         r2 = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": "What does P/E ratio mean? One sentence."}],
             max_tokens=50,
-            timeout=15.0,
         )
         financial = r2.choices[0].message.content or ""
         finish2 = r2.choices[0].finish_reason
