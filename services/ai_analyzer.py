@@ -37,7 +37,7 @@ def get_client():
 
 
 def get_model():
-    return os.environ.get('GLM_MODEL', 'GLM-4.6')
+    return os.environ.get('GLM_MODEL', 'GLM-4.7-Flash')
 
 
 def _safe(val):
@@ -120,9 +120,9 @@ def get_all_insights(ticker, data):
                 {"role": "system", "content": "Kamu adalah asisten yang menjelaskan data keuangan secara edukatif."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=800,
+            max_tokens=4000,
             temperature=0.7,
-            timeout=30.0,
+            timeout=60.0,
         )
         content = response.choices[0].message.content
         finish = response.choices[0].finish_reason
