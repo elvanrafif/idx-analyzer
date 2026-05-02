@@ -107,12 +107,30 @@ def test_connection():
     try:
         client = get_client()
         model = get_model()
-        response = client.chat.completions.create(
+        # test 1: basic
+        r1 = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": "Say OK"}],
-            max_tokens=5,
+            max_tokens=10,
             timeout=15.0,
         )
-        return True, response.choices[0].message.content.strip()
+        basic = r1.choices[0].message.content or ""
+        finish1 = r1.choices[0].finish_reason
+
+        # test 2: simple financial question
+        r2 = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "What does P/E ratio mean? One sentence."}],
+            max_tokens=50,
+            timeout=15.0,
+        )
+        financial = r2.choices[0].message.content or ""
+        finish2 = r2.choices[0].finish_reason
+
+        return True, {
+            "basic": basic, "finish1": finish1,
+            "financial": financial, "finish2": finish2,
+            "model": model,
+        }
     except Exception as e:
         return False, str(e)
