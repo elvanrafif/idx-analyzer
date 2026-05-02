@@ -103,9 +103,9 @@ def get_all_insights(ticker, data):
                 {"role": "system", "content": "Kamu adalah asisten yang menjelaskan data keuangan secara edukatif."},
                 {"role": "user", "content": prompt},
             ],
-            max_tokens=800,
+            max_tokens=4000,
             temperature=0.7,
-            timeout=45.0,
+            timeout=60.0,
         )
         content = response.choices[0].message.content
         finish = response.choices[0].finish_reason
@@ -130,7 +130,7 @@ def test_connection():
         r1 = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": "Say OK"}],
-            max_tokens=10,
+            max_tokens=500,
             timeout=15.0,
         )
         basic = r1.choices[0].message.content or ""
@@ -139,7 +139,7 @@ def test_connection():
         r2 = client.chat.completions.create(
             model=model,
             messages=[{"role": "user", "content": "What does P/E ratio mean? One sentence."}],
-            max_tokens=50,
+            max_tokens=500,
             timeout=15.0,
         )
         financial = r2.choices[0].message.content or ""
