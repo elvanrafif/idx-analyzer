@@ -78,9 +78,17 @@ def build_prompt(section, ticker, data):
     if not template:
         return None
     try:
-        return template.format(**data)
-    except KeyError:
-        return template.format(ticker=ticker, **{k: v for k, v in data.items() if k in template})
+        merged = {'ticker': ticker}
+        if isinstance(data, dict):
+            for k, v in data.items():
+                merged[k] = v if v is not None else 'N/A'
+        import re
+        placeholders = set(re.findall(r'\{(\w+)\}', template))
+        safe = {k: str(merged.get(k, 'N/A')) for k in placeholders}
+        return template.format(**safe)
+    except Exception as e:
+        print(f"Prompt build error ({section}): {e}")
+        return None
 
 
 def get_ai_insight(section, ticker, data):

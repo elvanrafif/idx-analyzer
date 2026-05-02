@@ -76,16 +76,20 @@ def analyze():
 
 @app.route('/api/ai-insight', methods=['POST'])
 def ai_insight():
-    body = request.get_json()
-    if not body:
-        return jsonify({"error": "Request body required"}), 400
-    section = body.get('section', '')
-    ticker = body.get('ticker', '')
-    data = body.get('data', {})
-    insight = get_ai_insight(section, ticker, data)
-    if insight:
-        return jsonify({"insight": insight})
-    return jsonify({"insight": None})
+    try:
+        body = request.get_json(silent=True)
+        if not body:
+            return jsonify({"insight": None})
+        section = body.get('section', '')
+        ticker = body.get('ticker', '')
+        data = body.get('data', {}) or {}
+        insight = get_ai_insight(section, ticker, data)
+        if insight:
+            return jsonify({"insight": insight})
+        return jsonify({"insight": None})
+    except Exception as e:
+        print(f"AI Route Error: {e}")
+        return jsonify({"insight": None})
 
 
 if __name__ == '__main__':
