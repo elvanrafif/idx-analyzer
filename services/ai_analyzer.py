@@ -4,7 +4,7 @@ import time
 import jwt
 from openai import OpenAI
 
-SECTIONS = ['valuasi', 'technical', 'scoring', 'composite', 'consensus']
+SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus']
 
 
 def _generate_token(api_key: str) -> str:
@@ -60,35 +60,49 @@ def build_combined_prompt(ticker, data):
     bb_pct = bb.get('pct_b')
     bb_pct_str = f"{float(bb_pct)*100:.0f}" if bb_pct is not None else 'N/A'
 
+    price = i.get('regularMarketPrice') or i.get('currentPrice')
+    wk52h = i.get('fiftyTwoWeekHigh')
+    wk52l = i.get('fiftyTwoWeekLow')
+    wk52pos = f"{(price - wk52l) / (wk52h - wk52l) * 100:.0f}%" if price and wk52h and wk52l and wk52h != wk52l else 'N/A'
+
     return f"""Tolong jelaskan data keuangan emiten {ticker} berdasarkan angka-angka berikut. \
 Ini untuk keperluan edukasi dan pemahaman laporan keuangan, bukan rekomendasi investasi.
 
 Data emiten:
+- Harga: Rp{_safe(price)}, Posisi 52 minggu={wk52pos}, Market Cap={_safe(i.get('marketCap'))}
 - Rasio harga: P/E={_safe(i.get('trailingPE'))}, P/BV={_safe(i.get('priceToBook'))}, PEG={_safe(i.get('pegRatio'))}, P/S={_safe(i.get('priceToSalesTrailing12Months'))}
+- Profitabilitas: ROE={_safe(i.get('returnOnEquity'))}, ROA={_safe(i.get('returnOnAssets'))}, Net Margin={_safe(i.get('profitMargins'))}
 - Indikator teknikal: MACD={_safe(macd.get('signal_label'))}, RSI={_safe(rsi.get('value'))} ({_safe(rsi.get('signal'))}), Bollinger={_safe(bb.get('signal'))} (%B={bb_pct_str}), SMA50={_safe(sma.get('sma50'))}, Golden Cross={_safe(sma.get('golden_cross'))}
-- Skor fundamental: Piotroski={_safe(piotroski.get('score'))}/9 ({_safe(piotroski.get('rating'))}), Altman Z={_safe(altman.get('z_score'))} ({_safe(altman.get('zone'))})
+- Piotroski F-Score: {_safe(piotroski.get('score'))}/9, Rating={_safe(piotroski.get('rating'))}
+- Altman Z-Score: {_safe(altman.get('z_score'))}, Zone={_safe(altman.get('zone'))}, Deskripsi={_safe(altman.get('desc'))}
 - Skor komposit: {_safe(comp.get('final'))}/100, Sinyal={_safe(comp.get('signal'))}, Fundamental={_safe(comp_components.get('Fundamental'))}, Teknikal={_safe(comp_components.get('Technical'))}, Risiko={_safe(comp_components.get('Risk'))}, Momentum={_safe(comp_components.get('Momentum'))}
 
 Jelaskan masing-masing bagian berikut dalam Bahasa Indonesia, 2-3 kalimat tiap bagian. \
-Gunakan format persis seperti ini:
+Gunakan format persis seperti ini (jangan ada teks di luar format):
 
+[KEY_METRICS]
+ringkasan singkat kondisi emiten secara keseluruhan berdasarkan harga dan valuasi
 [VALUASI]
-penjelasan rasio harga di sini
+penjelasan rasio harga P/E, P/BV, PEG
 [TECHNICAL]
-penjelasan indikator teknikal di sini
-[SCORING]
-penjelasan skor fundamental di sini
+penjelasan sinyal MACD, RSI, Bollinger Bands, dan Moving Average
+[PIOTROSKI]
+penjelasan khusus Piotroski F-Score dan artinya
+[ALTMAN]
+penjelasan khusus Altman Z-Score dan artinya
 [COMPOSITE]
-penjelasan skor komposit di sini
+penjelasan skor komposit dan sinyal keseluruhan
 [CONSENSUS]
-ringkasan keseluruhan di sini"""
+ringkasan akhir dari semua indikator"""
 
 
 def parse_combined_response(text):
     results = {}
-    pattern = r'\[(' + '|'.join(s.upper() for s in SECTIONS) + r')\]\s*(.*?)(?=\[(?:' + '|'.join(s.upper() for s in SECTIONS) + r')\]|$)'
+    keys = [s.upper().replace('_', r'[_\s]?') for s in SECTIONS]
+    pattern = r'\[(' + '|'.join(keys) + r')\]\s*(.*?)(?=\[(?:' + '|'.join(keys) + r')\]|$)'
     for label, content in re.findall(pattern, text, re.DOTALL | re.IGNORECASE):
-        results[label.lower()] = content.strip()
+        key = re.sub(r'[\s_]+', '_', label.strip()).lower()
+        results[key] = content.strip()
     return results
 
 

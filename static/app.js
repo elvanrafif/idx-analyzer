@@ -144,7 +144,7 @@ function initTabs() {
 }
 
 function fetchAllAIInsights(ticker, fullData) {
-  var SECTIONS = ['valuasi', 'technical', 'scoring', 'composite', 'consensus'];
+  var SECTIONS = ['key_metrics', 'valuasi', 'technical', 'piotroski', 'altman', 'composite', 'consensus'];
   var cacheKey = 'ai_all_' + ticker;
   var cached = sessionStorage.getItem(cacheKey);
 
@@ -200,62 +200,27 @@ function fetchAllAIInsights(ticker, fullData) {
 }
 
 function insertAIBox(section, html) {
+  function byTitle(keyword) {
+    var sections = document.querySelectorAll('.section');
+    for (var i = 0; i < sections.length; i++) {
+      var t = sections[i].querySelector('.section-title');
+      if (t && t.textContent.indexOf(keyword) >= 0) {
+        sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
+        return;
+      }
+    }
+  }
   var targets = {
-    'valuasi': function() {
+    'key_metrics':  function() { byTitle('KEY METRICS'); },
+    'valuasi':      function() {
       var panels = document.querySelectorAll('.tab-panel');
       if (panels.length > 0) panels[0].insertAdjacentHTML('beforeend', html);
     },
-    'profitabilitas': function() {
-      var panels = document.querySelectorAll('.tab-panel');
-      if (panels.length > 1) panels[1].insertAdjacentHTML('beforeend', html);
-    },
-    'kesehatan': function() {
-      var panels = document.querySelectorAll('.tab-panel');
-      if (panels.length > 2) panels[2].insertAdjacentHTML('beforeend', html);
-    },
-    'dividen': function() {
-      var panels = document.querySelectorAll('.tab-panel');
-      if (panels.length > 3) panels[3].insertAdjacentHTML('beforeend', html);
-    },
-    'composite': function() {
-      var sections = document.querySelectorAll('.section');
-      if (sections.length > 2) sections[2].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-    },
-    'consensus': function() {
-      var sections = document.querySelectorAll('.section');
-      if (sections.length > 1) sections[1].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-    },
-    'scoring': function() {
-      var sections = document.querySelectorAll('.section');
-      if (sections.length > 4) sections[4].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-    },
-    'technical': function() {
-      var sections = document.querySelectorAll('.section');
-      for (var i = 0; i < sections.length; i++) {
-        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('TECHNICAL') >= 0) {
-          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-          return;
-        }
-      }
-    },
-    'risk': function() {
-      var sections = document.querySelectorAll('.section');
-      for (var i = 0; i < sections.length; i++) {
-        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('RISK') >= 0) {
-          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-          return;
-        }
-      }
-    },
-    'financial': function() {
-      var sections = document.querySelectorAll('.section');
-      for (var i = 0; i < sections.length; i++) {
-        if (sections[i].querySelector('.section-title') && sections[i].querySelector('.section-title').textContent.indexOf('FINANCIAL') >= 0) {
-          sections[i].querySelector('.section-body').insertAdjacentHTML('beforeend', html);
-          return;
-        }
-      }
-    }
+    'composite':    function() { byTitle('COMPOSITE'); },
+    'consensus':    function() { byTitle('CONSENSUS'); },
+    'piotroski':    function() { byTitle('PIOTROSKI'); },
+    'altman':       function() { byTitle('ALTMAN'); },
+    'technical':    function() { byTitle('MACD'); },
   };
   if (targets[section]) targets[section]();
 }
