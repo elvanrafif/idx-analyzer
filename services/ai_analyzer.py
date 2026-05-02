@@ -10,7 +10,7 @@ def get_client():
 
 
 def get_model():
-    return os.environ.get('GLM_MODEL', 'glm-4')
+    return os.environ.get('GLM_MODEL', 'GLM-4.5-Flash')
 
 
 SECTION_PROMPTS = {
