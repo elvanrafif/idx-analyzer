@@ -1,12 +1,39 @@
 import os
 import re
-from zhipuai import ZhipuAI
+import time
+import jwt
+from openai import OpenAI
 
 SECTIONS = ['valuasi', 'technical', 'scoring', 'composite', 'consensus']
 
 
+def _generate_token(api_key: str) -> str:
+    """Generate ZhipuAI JWT from {id}.{secret} key format."""
+    try:
+        key_id, secret = api_key.split('.', 1)
+    except ValueError:
+        return api_key  # not the {id}.{secret} format, use as-is
+    now_ms = int(time.time() * 1000)
+    payload = {
+        "api_key": key_id,
+        "exp": now_ms + 60_000,
+        "timestamp": now_ms,
+    }
+    return jwt.encode(
+        payload,
+        secret,
+        algorithm="HS256",
+        headers={"alg": "HS256", "sign_type": "SIGN"},
+    )
+
+
 def get_client():
-    return ZhipuAI(api_key=os.environ.get('GLM_API_KEY', ''))
+    raw_key = os.environ.get('GLM_API_KEY', '')
+    token = _generate_token(raw_key)
+    return OpenAI(
+        api_key=token,
+        base_url=os.environ.get('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
+    )
 
 
 def get_model():
@@ -60,8 +87,7 @@ ringkasan keseluruhan di sini"""
 def parse_combined_response(text):
     results = {}
     pattern = r'\[(' + '|'.join(s.upper() for s in SECTIONS) + r')\]\s*(.*?)(?=\[(?:' + '|'.join(s.upper() for s in SECTIONS) + r')\]|$)'
-    matches = re.findall(pattern, text, re.DOTALL | re.IGNORECASE)
-    for label, content in matches:
+    for label, content in re.findall(pattern, text, re.DOTALL | re.IGNORECASE):
         results[label.lower()] = content.strip()
     return results
 
@@ -79,6 +105,7 @@ def get_all_insights(ticker, data):
             ],
             max_tokens=800,
             temperature=0.7,
+            timeout=45.0,
         )
         content = response.choices[0].message.content
         finish = response.choices[0].finish_reason
@@ -104,6 +131,7 @@ def test_connection():
             model=model,
             messages=[{"role": "user", "content": "Say OK"}],
             max_tokens=10,
+            timeout=15.0,
         )
         basic = r1.choices[0].message.content or ""
         finish1 = r1.choices[0].finish_reason
@@ -112,6 +140,7 @@ def test_connection():
             model=model,
             messages=[{"role": "user", "content": "What does P/E ratio mean? One sentence."}],
             max_tokens=50,
+            timeout=15.0,
         )
         financial = r2.choices[0].message.content or ""
         finish2 = r2.choices[0].finish_reason
