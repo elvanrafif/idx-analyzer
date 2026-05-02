@@ -16,7 +16,7 @@ def _generate_token(api_key: str) -> str:
     now_ms = int(time.time() * 1000)
     payload = {
         "api_key": key_id,
-        "exp": now_ms + 60_000,
+        "exp": now_ms + 600_000,  # 10 minutes
         "timestamp": now_ms,
     }
     return jwt.encode(
