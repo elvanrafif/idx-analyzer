@@ -1,7 +1,7 @@
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from services.yahoo_fetcher import fetch_ticker_data, df_to_dict
-from services.ai_analyzer import get_ai_insight
+from services.ai_analyzer import get_ai_insight, test_connection
 from indicators.piotroski import calculate_piotroski
 from indicators.altman_z import calculate_altman_z
 from indicators.macd_bb import calculate_macd_bb
@@ -79,17 +79,31 @@ def ai_insight():
     try:
         body = request.get_json(silent=True)
         if not body:
-            return jsonify({"insight": None})
+            return jsonify({"insight": None, "error": "empty body"})
         section = body.get('section', '')
         ticker = body.get('ticker', '')
         data = body.get('data', {}) or {}
-        insight = get_ai_insight(section, ticker, data)
+        insight, err = get_ai_insight(section, ticker, data)
         if insight:
             return jsonify({"insight": insight})
-        return jsonify({"insight": None})
+        print(f"AI insight failed [{section}]: {err}")
+        return jsonify({"insight": None, "error": err})
     except Exception as e:
         print(f"AI Route Error: {e}")
-        return jsonify({"insight": None})
+        return jsonify({"insight": None, "error": str(e)})
+
+
+@app.route('/api/ai-test')
+def ai_test():
+    import os
+    ok, msg = test_connection()
+    return jsonify({
+        "ok": ok,
+        "message": msg,
+        "model": os.environ.get('GLM_MODEL', 'glm-4-flash'),
+        "base_url": os.environ.get('GLM_BASE_URL', 'https://open.bigmodel.cn/api/paas/v4'),
+        "api_key_set": bool(os.environ.get('GLM_API_KEY')),
+    })
 
 
 if __name__ == '__main__':

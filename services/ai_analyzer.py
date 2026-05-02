@@ -9,6 +9,10 @@ def get_client():
     )
 
 
+def get_model():
+    return os.environ.get('GLM_MODEL', 'glm-4-flash')
+
+
 SECTION_PROMPTS = {
     'valuasi': (
         "Analisa valuasi saham {ticker} berdasarkan data berikut: "
@@ -94,20 +98,37 @@ def build_prompt(section, ticker, data):
 def get_ai_insight(section, ticker, data):
     prompt = build_prompt(section, ticker, data)
     if not prompt:
-        return None
+        return None, "No prompt template for section: " + section
     try:
         client = get_client()
+        model = get_model()
         response = client.chat.completions.create(
-            model="glm-4-air",
+            model=model,
             messages=[
                 {"role": "system", "content": "Kamu adalah analis saham IDX yang ahli. Berikan analisis singkat, tajam, dan to the point."},
                 {"role": "user", "content": prompt},
             ],
             max_tokens=200,
             temperature=0.7,
+            timeout=30.0,
+        )
+        return response.choices[0].message.content.strip(), None
+    except Exception as e:
+        err = f"AI Error ({section}) model={get_model()}: {e}"
+        print(err)
+        return None, str(e)
+
+
+def test_connection():
+    try:
+        client = get_client()
+        model = get_model()
+        response = client.chat.completions.create(
+            model=model,
+            messages=[{"role": "user", "content": "Say OK"}],
+            max_tokens=5,
             timeout=15.0,
         )
-        return response.choices[0].message.content.strip()
+        return True, response.choices[0].message.content.strip()
     except Exception as e:
-        print(f"AI Error ({section}): {e}")
-        return None
+        return False, str(e)
