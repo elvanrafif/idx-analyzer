@@ -82,10 +82,10 @@ def ai_insights():
             return jsonify({"insights": {}, "error": "empty body"})
         ticker = body.get('ticker', '')
         data = body.get('data', {}) or {}
-        insights, err = get_all_insights(ticker, data)
-        if err:
-            print(f"AI insights failed: {err}")
-        return jsonify({"insights": insights, "error": err})
+        insights, raw_or_err = get_all_insights(ticker, data)
+        if not insights:
+            print(f"AI insights failed or empty: {raw_or_err}")
+        return jsonify({"insights": insights, "raw": raw_or_err})
     except Exception as e:
         print(f"AI Route Error: {e}")
         return jsonify({"insights": {}, "error": str(e)})

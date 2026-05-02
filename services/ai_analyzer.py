@@ -88,10 +88,11 @@ def get_all_insights(ticker, data):
             timeout=45.0,
         )
         raw = response.choices[0].message.content.strip()
+        print(f"GLM RAW RESPONSE:\n{raw}\n---END---")
         insights = parse_combined_response(raw)
         if not insights:
-            print(f"AI parse failed, raw response: {raw[:300]}")
-        return insights, None
+            print(f"AI parse failed, raw response: {raw[:500]}")
+        return insights, raw  # temporarily return raw for debugging
     except Exception as e:
         err = f"AI Error (all) model={get_model()}: {e}"
         print(err)
