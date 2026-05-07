@@ -14,6 +14,8 @@ from indicators.composite import calculate_composite
 from indicators.key_levels import calculate_key_levels, calculate_outlook
 from indicators.adx import calculate_adx
 from indicators.avwap import calculate_avwap
+from indicators.stochastic import calculate_stochastic
+from indicators.obv import calculate_obv
 
 load_dotenv()
 app = Flask(__name__)
@@ -66,6 +68,8 @@ def analyze():
 
         adx = calculate_adx(data['hist_3m'])
         avwap = calculate_avwap(data['hist_3m'])
+        stochastic = calculate_stochastic(data['hist_3m'])
+        obv = calculate_obv(data['hist_1y'])
         key_levels = calculate_key_levels(data['hist_3m'])
         outlook = calculate_outlook(key_levels, composite)
 
@@ -85,6 +89,8 @@ def analyze():
             "rvol": rvol,
             "adx": adx,
             "avwap": avwap,
+            "stochastic": stochastic,
+            "obv": obv,
             "fcf_yield": fcf_yield,
             "sharpe": sharpe,
             "sortino": sortino,

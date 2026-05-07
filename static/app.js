@@ -401,17 +401,32 @@ function renderConsensus(d) {
   '</div>';
 }
 
-function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
-  if (!mb && !rsi && !sma && !rvol && !adx && !avwap) return '<p class="no-data">Data historis tidak cukup.</p>';
+function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
+  if (!mb && !rsi && !sma && !rvol && !adx && !avwap && !stoch && !obv) return '<p class="no-data">Data historis tidak cukup.</p>';
   var cards = [];
+  var sc = { bullish:'sig-bullish', bearish:'sig-bearish', overbought:'sig-overbought', oversold:'sig-oversold', netral:'sig-netral', neutral:'sig-netral', accumulation:'sig-bullish', distribution:'sig-bearish', 'bullish divergence':'sig-bullish', 'bearish divergence':'sig-bearish' };
 
+  // 1. EMA
+  if (sma) {
+    var gcls = sma.golden_cross === true ? 'sig-golden' : sma.golden_cross === false ? 'sig-death' : 'sig-netral';
+    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50>EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50<EMA200)' : 'N/A';
+    var fmtEma = function(v) { return v != null ? 'Rp ' + v.toLocaleString('id') : '<span class="na">—</span>'; };
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">EMA — Moving Averages</div>' +
+      '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">Harga</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 21 <span style="font-size:9px;opacity:.6;">(entry)</span></span><span class="' + (sma.price > sma.ema21 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema21) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stoploss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 200 <span style="font-size:9px;opacity:.6;">(trend)</span></span><span class="' + (sma.above_ema200 === true ? 'pos' : sma.above_ema200 === false ? 'neg' : '') + '">' + fmtEma(sma.ema200) + '</span></div>' +
+    '</div>');
+  }
+
+  // 2. MACD
   if (mb) {
-    var m = mb.macd, b = mb.bb;
-    var sc = { bullish: 'sig-bullish', bearish: 'sig-bearish', overbought: 'sig-overbought', oversold: 'sig-oversold', netral: 'sig-netral' };
+    var m = mb.macd;
     var ms = (m.signal_label || '').toLowerCase();
-    var bs = (b.signal || '').toLowerCase();
     var cross = m.cross ? '<div class="tech-sig ' + (m.cross.includes('GOLDEN') ? 'sig-golden' : 'sig-death') + '" style="margin-top:6px;font-size:10px;">' + m.cross + '</div>' : '';
-
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">MACD (12,26,9)</div>' +
       '<div class="tech-sig ' + (sc[ms] || 'sig-netral') + '">' + m.signal_label + '</div>' + cross +
@@ -419,19 +434,9 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
       '<div class="tech-row"><span class="tech-row-label">Signal Line</span><span>' + m.signal + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Histogram</span><span class="' + (m.hist > 0 ? 'pos' : 'neg') + '">' + m.hist + '</span></div>' +
     '</div>');
-
-    cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Bollinger Bands (20,2)</div>' +
-      '<div class="tech-sig ' + (sc[bs] || 'sig-netral') + '">' + b.signal + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">' + (b.upper != null ? 'Rp ' + b.upper.toLocaleString('id') : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>' + (b.mid != null ? 'Rp ' + b.mid.toLocaleString('id') : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">' + (b.lower != null ? 'Rp ' + b.lower.toLocaleString('id') : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">%B Position</span><span>' + (b.pct_b != null ? (b.pct_b * 100).toFixed(0) + '%' : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Bandwidth</span><span>' + (b.bandwidth != null ? b.bandwidth : '\u2014') + '</span></div>' +
-      (b.squeeze ? '<div class="tech-row"><span class="tech-row-label">Squeeze</span><span class="badge bb">ACTIVE</span></div>' : '') +
-    '</div>');
   }
 
+  // 3. RSI
   if (rsi) {
     var rsiColor = rsi.value > 70 ? 'var(--warn)' : rsi.value < 30 ? 'var(--info)' : 'var(--pos)';
     var rsiSigCls = rsi.signal === 'OVERBOUGHT' ? 'sig-overbought' : rsi.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
@@ -444,27 +449,67 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
           '<div style="height:100%;border-radius:4px;width:' + rsi.value + '%;background:' + rsiColor + ';transition:width .5s;"></div>' +
         '</div>' +
         '<div style="display:flex;justify-content:space-between;font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--text-secondary);margin-top:3px;">' +
-          '<span style="color:var(--info);">0 Oversold</span><span>30</span><span>50</span><span>70</span><span style="color:var(--warn);">100 Overbought</span>' +
+          '<span style="color:var(--info);">0</span><span>30</span><span>50</span><span>70</span><span style="color:var(--warn);">100</span>' +
         '</div>' +
       '</div>' +
     '</div>');
   }
 
-  if (sma) {
-    var gcls = sma.golden_cross === true ? 'sig-golden' : sma.golden_cross === false ? 'sig-death' : 'sig-netral';
-    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50>EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50<EMA200)' : 'N/A';
-    var fmtEma = function(v) { return v ? 'Rp ' + v.toLocaleString('id') : '<span class="na">\u2014</span>'; };
+  // 4. Stochastic
+  if (stoch) {
+    var stColor = stoch.k > 80 ? 'var(--warn)' : stoch.k < 20 ? 'var(--info)' : 'var(--pos)';
+    var stSigCls = stoch.signal === 'OVERBOUGHT' ? 'sig-overbought' : stoch.signal === 'OVERSOLD' ? 'sig-oversold' : stoch.signal === 'BULLISH' ? 'sig-bullish' : stoch.signal === 'BEARISH' ? 'sig-bearish' : 'sig-netral';
+    var stCross = stoch.cross ? '<div class="tech-sig ' + (stoch.cross.includes('GOLDEN') ? 'sig-golden' : 'sig-death') + '" style="margin-top:6px;font-size:10px;">' + stoch.cross + '</div>' : '';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">EMA \u2014 Moving Averages</div>' +
-      '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Harga</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 21 <span style="font-size:9px;opacity:.6;">(entry)</span></span><span class="' + (sma.price > sma.ema21 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema21) + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stoploss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 200 <span style="font-size:9px;opacity:.6;">(trend)</span></span><span class="' + (sma.above_ema200 === true ? 'pos' : sma.above_ema200 === false ? 'neg' : '') + '">' + fmtEma(sma.ema200) + '</span></div>' +
+      '<div class="tech-card-title">Stochastic (14,3,3)</div>' +
+      '<div class="tech-sig ' + stSigCls + '">' + stoch.signal + '</div>' + stCross +
+      '<div style="display:flex;gap:16px;margin:8px 0;">' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-size:24px;font-weight:600;color:' + stColor + ';">' + stoch.k + '</div><div style="font-size:9px;color:var(--text-secondary);">%K</div></div>' +
+        '<div><div style="font-family:\'JetBrains Mono\',monospace;font-size:24px;font-weight:600;color:var(--text-secondary);">' + stoch.d + '</div><div style="font-size:9px;color:var(--text-secondary);">%D Signal</div></div>' +
+      '</div>' +
+      '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.04);margin:6px 0;">' +
+        '<div style="height:100%;border-radius:3px;width:' + stoch.k + '%;background:' + stColor + ';transition:width .5s;"></div>' +
+      '</div>' +
+      '<div style="display:flex;justify-content:space-between;font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--text-secondary);margin-top:2px;">' +
+        '<span style="color:var(--info);">0</span><span>20</span><span>80</span><span style="color:var(--warn);">100</span>' +
+      '</div>' +
     '</div>');
   }
 
+  // 5. Bollinger Bands
+  if (mb) {
+    var b2 = mb.bb, bs2 = (b2.signal || '').toLowerCase();
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">Bollinger Bands (20,2)</div>' +
+      '<div class="tech-sig ' + (sc[bs2] || 'sig-netral') + '">' + b2.signal + '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">' + (b2.upper != null ? 'Rp ' + b2.upper.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>' + (b2.mid != null ? 'Rp ' + b2.mid.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">' + (b2.lower != null ? 'Rp ' + b2.lower.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">%B Position</span><span>' + (b2.pct_b != null ? (b2.pct_b * 100).toFixed(0) + '%' : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Bandwidth</span><span>' + (b2.bandwidth != null ? b2.bandwidth : '—') + '</span></div>' +
+      (b2.squeeze ? '<div class="tech-row"><span class="tech-row-label">Squeeze</span><span class="badge bb">ACTIVE</span></div>' : '') +
+    '</div>');
+  }
+
+  // 6. ADX
+  if (adx) {
+    var adxStrCls = adx.strength === 'STRONG' ? 'sig-bullish' : adx.strength === 'MODERATE' ? 'sig-netral' : 'sig-bearish';
+    var adxDirCls = adx.direction === 'BULLISH' ? 'pos' : 'neg';
+    var adxBarW = Math.min(100, adx.adx / 50 * 100);
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">ADX (14) — Trend Strength</div>' +
+      '<div class="tech-sig ' + adxStrCls + '">' + adx.strength + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;line-height:1;margin:6px 0;" class="' + adxStrCls.replace('sig-', '') + '">' + adx.adx + '</div>' +
+      '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.04);margin:8px 0;">' +
+        '<div style="height:100%;border-radius:3px;width:' + adxBarW + '%;background:linear-gradient(90deg,var(--info),var(--warn));transition:width .5s;"></div>' +
+      '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">Arah Tren</span><span class="' + adxDirCls + '">' + adx.direction + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">+DI (bullish)</span><span class="pos">' + adx.plus_di + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">-DI (bearish)</span><span class="neg">' + adx.minus_di + '</span></div>' +
+    '</div>');
+  }
+
+  // 7. AVWAP
   if (avwap) {
     var avwapSigCls = avwap.signal === 'BULLISH' ? 'sig-bullish' : 'sig-bearish';
     var avwapDiff = avwap.pct_diff != null ? (avwap.pct_diff > 0 ? '+' + avwap.pct_diff + '%' : avwap.pct_diff + '%') : '—';
@@ -476,6 +521,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
     '</div>');
   }
 
+  // 8. RVOL
   if (rvol) {
     var rvsc = rvol.signal === 'SANGAT TINGGI' ? 'bg' : rvol.signal === 'TINGGI' ? 'by' : rvol.signal === 'NORMAL' ? 'bb' : 'br';
     var barW = Math.min(100, rvol.rvol / 4 * 100);
@@ -493,20 +539,19 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
     '</div>');
   }
 
-  if (adx) {
-    var adxStrCls = adx.strength === 'STRONG' ? 'sig-bullish' : adx.strength === 'MODERATE' ? 'sig-netral' : 'sig-bearish';
-    var adxDirCls = adx.direction === 'BULLISH' ? 'pos' : 'neg';
-    var adxBarW = Math.min(100, adx.adx / 50 * 100);
+  // 9. OBV
+  if (obv) {
+    var obvSigCls = sc[(obv.signal || '').toLowerCase()] || 'sig-netral';
+    var obvTrCls = obv.trend === 'NAIK' ? 'pos' : 'neg';
+    var obvDivBadge = obv.divergence ? '<span class="badge by" style="font-size:9px;margin-left:6px;">DIVERGENCE</span>' : '';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">ADX (14) — Trend Strength</div>' +
-      '<div class="tech-sig ' + adxStrCls + '">' + adx.strength + '</div>' +
-      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;line-height:1;margin:6px 0;" class="' + adxStrCls.replace('sig-', '') + '">' + adx.adx + '</div>' +
-      '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.04);margin:8px 0;">' +
-        '<div style="height:100%;border-radius:3px;width:' + adxBarW + '%;background:linear-gradient(90deg,var(--info),var(--warn));transition:width .5s;"></div>' +
+      '<div class="tech-card-title">OBV <span style="font-size:9px;opacity:.6;">(On-Balance Volume)</span></div>' +
+      '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
+        '<div class="tech-sig ' + obvSigCls + '" style="margin-bottom:0;">' + obv.signal + '</div>' + obvDivBadge +
       '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Arah Tren</span><span class="' + adxDirCls + '">' + adx.direction + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">+DI (bullish)</span><span class="pos">' + adx.plus_di + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">-DI (bearish)</span><span class="neg">' + adx.minus_di + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">OBV</span><span class="' + obvTrCls + '">' + obv.value + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Tren OBV</span><span class="' + obvTrCls + '">' + obv.trend + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Tren EMA10</span><span class="' + (obv.ema_trend === 'NAIK' ? 'pos' : 'neg') + '">' + obv.ema_trend + '</span></div>' +
     '</div>');
   }
 
@@ -796,6 +841,14 @@ function renderSignalStrip(d) {
     var rvolv = (d.rvol.signal === 'SANGAT TINGGI' || d.rvol.signal === 'TINGGI') ? 1 : d.rvol.signal === 'RENDAH' ? -1 : 0;
     votes.push({ name: 'RVOL', v: rvolv, label: d.rvol.rvol + 'x' });
   }
+  if (d.stochastic) {
+    var stv = d.stochastic.signal === 'OVERSOLD' || d.stochastic.signal === 'BULLISH' ? 1 : d.stochastic.signal === 'OVERBOUGHT' || d.stochastic.signal === 'BEARISH' ? -1 : 0;
+    votes.push({ name: 'STOCH', v: stv, label: d.stochastic.k + '/' + d.stochastic.d });
+  }
+  if (d.obv) {
+    var obvv = d.obv.signal === 'ACCUMULATION' || d.obv.signal === 'BULLISH DIVERGENCE' ? 1 : d.obv.signal === 'DISTRIBUTION' || d.obv.signal === 'BEARISH DIVERGENCE' ? -1 : 0;
+    votes.push({ name: 'OBV', v: obvv, label: d.obv.trend });
+  }
 
   var buyCount  = votes.filter(function(x) { return x.v === 1; }).length;
   var sellCount = votes.filter(function(x) { return x.v === -1; }).length;
@@ -857,7 +910,7 @@ function render(d) {
   html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true);
   html += '</div>';
 
-  html += sec('', 'INDIKATOR TEKNIKAL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap), true);
+  html += sec('', 'INDIKATOR TEKNIKAL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv), true);
 
   html += '<div class="layout-pair">';
   html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true);
