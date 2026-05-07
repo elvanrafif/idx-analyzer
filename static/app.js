@@ -32,11 +32,17 @@ async function analyze() {
     hide('loading');
     document.getElementById('search-btn').disabled = false;
     if (d.error) { showErr(d.error); return; }
-    render(d);
+    try {
+      render(d);
+    } catch (renderErr) {
+      showErr('Render error: ' + (renderErr && renderErr.message ? renderErr.message : String(renderErr)));
+      console.error('render() threw:', renderErr);
+    }
   } catch (e) {
     hide('loading');
     document.getElementById('search-btn').disabled = false;
     showErr('Koneksi gagal atau limit tercapai. Tunggu beberapa saat.');
+    console.error('fetch/parse error:', e);
   }
 }
 
