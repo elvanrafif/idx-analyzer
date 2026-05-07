@@ -230,6 +230,7 @@ body {
 .section-toggle { font-size: 11px; color: var(--border-mid); transition: transform 0.2s; }
 .collapsed .section-toggle { transform: rotate(-90deg); }
 .collapsed .section-body { display: none; }
+.collapsed .section-divider { display: none; }
 .section-divider { height: 1px; background: var(--border); margin: 0 18px; }
 
 /* ── KEY METRICS ── */
