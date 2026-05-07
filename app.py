@@ -1,3 +1,4 @@
+import math
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from services.yahoo_fetcher import fetch_ticker_data, df_to_dict
@@ -16,6 +17,16 @@ from indicators.avwap import calculate_avwap
 
 load_dotenv()
 app = Flask(__name__)
+
+
+def clean_nan(obj):
+    if isinstance(obj, float):
+        return None if (math.isnan(obj) or math.isinf(obj)) else obj
+    if isinstance(obj, dict):
+        return {k: clean_nan(v) for k, v in obj.items()}
+    if isinstance(obj, list):
+        return [clean_nan(v) for v in obj]
+    return obj
 
 
 @app.route('/')
@@ -58,7 +69,7 @@ def analyze():
         key_levels = calculate_key_levels(data['hist_3m'])
         outlook = calculate_outlook(key_levels, composite)
 
-        return jsonify({
+        return jsonify(clean_nan({
             "ticker": ticker,
             "updated": data['updated'],
             "info": info,
@@ -80,7 +91,7 @@ def analyze():
             "composite": composite,
             "key_levels": key_levels,
             "outlook": outlook,
-        })
+        }))
     except Exception as e:
         print(f"ERROR: {str(e)}")
         return jsonify({"error": f"Error teknis: {str(e)}"})
