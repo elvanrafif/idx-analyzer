@@ -91,11 +91,12 @@ function badge(txt) {
   return '<span class="badge ' + (m[txt[0]] || 'bb') + '">' + txt + '</span>';
 }
 
-function sec(icon, title, body, open, wide) {
-  const id = 's' + Math.random().toString(36).slice(2, 8);
-  return '<div class="section glass' + (open ? '' : ' collapsed') + '"' + (wide ? ' style="grid-column:span 2"' : '') + ' id="' + id + '">' +
+function sec(icon, title, body, open) {
+  var id = 's' + Math.random().toString(36).slice(2, 8);
+  var iconHtml = icon ? '<div class="section-icon">' + icon + '</div>' : '';
+  return '<div class="section glass' + (open ? '' : ' collapsed') + '" id="' + id + '">' +
     '<div class="section-header" onclick="document.getElementById(\'' + id + '\').classList.toggle(\'collapsed\')">' +
-      '<div class="section-icon">' + icon + '</div>' +
+      iconHtml +
       '<div class="section-title">' + title + '</div>' +
       '<div class="section-toggle">\u25BC</div>' +
     '</div>' +
@@ -220,7 +221,7 @@ function insertAIBox(section, html) {
     'consensus':    function() { byTitle('CONSENSUS'); },
     'piotroski':    function() { byTitle('PIOTROSKI'); },
     'altman':       function() { byTitle('ALTMAN'); },
-    'technical':    function() { byTitle('MACD'); },
+    'technical':    function() { byTitle('TEKNIKAL'); },
     'key_levels':   function() { byTitle('KEY LEVEL'); },
   };
   if (targets[section]) targets[section]();
@@ -686,7 +687,7 @@ function renderKeyLevels(kl) {
   function row(label, val, type, bold) {
     var isCur = type === 'cur';
     return '<div style="display:flex;align-items:center;gap:10px;padding:' + (isCur ? '10px 16px' : '6px 16px') + ';' +
-      (isCur ? 'background:rgba(96,165,250,0.08);border-radius:8px;margin:4px 0;' : '') + '">' +
+      (isCur ? 'background:var(--badge-info-bg);border-radius:6px;margin:4px 0;' : '') + '">' +
       '<span style="font-family:\'JetBrains Mono\',monospace;font-size:10px;color:var(--text-secondary);width:42px;text-align:right;">' + label + '</span>' +
       (isCur ? '' : bar(val, type)) +
       '<span style="font-family:\'JetBrains Mono\',monospace;font-size:' + (isCur ? '14px' : '12px') + ';font-weight:' + (isCur ? '700' : '400') + ';color:' +
@@ -756,42 +757,128 @@ function renderOutlook(ol) {
   return '<div style="display:flex;gap:0;padding:4px 20px 4px;">' + left + right + '</div>';
 }
 
+function renderSignalStrip(d) {
+  var votes = [];
+  if (d.macd_bb) {
+    var msig = d.macd_bb.macd.signal_label;
+    votes.push({ name: 'MACD', v: msig === 'BULLISH' ? 1 : -1, label: msig });
+    var bsig = d.macd_bb.bb.signal;
+    var bv = (bsig === 'BULLISH' || bsig === 'OVERSOLD') ? 1 : (bsig === 'BEARISH' || bsig === 'OVERBOUGHT') ? -1 : 0;
+    votes.push({ name: 'BB', v: bv, label: bsig });
+  }
+  if (d.rsi) {
+    var rv = d.rsi.signal === 'OVERSOLD' ? 1 : d.rsi.signal === 'OVERBOUGHT' ? -1 : 0;
+    votes.push({ name: 'RSI', v: rv, label: String(d.rsi.value) });
+  }
+  if (d.sma) {
+    var sv = d.sma.golden_cross === true ? 1 : d.sma.golden_cross === false ? -1 : 0;
+    votes.push({ name: 'EMA', v: sv, label: d.sma.golden_cross === true ? 'GOLDEN' : d.sma.golden_cross === false ? 'DEATH' : 'NETRAL' });
+  }
+  if (d.adx) {
+    var adxv = (d.adx.direction === 'BULLISH' && d.adx.strength !== 'WEAK') ? 1 : (d.adx.direction === 'BEARISH' && d.adx.strength !== 'WEAK') ? -1 : 0;
+    votes.push({ name: 'ADX', v: adxv, label: d.adx.strength });
+  }
+  if (d.piotroski) {
+    var pv = d.piotroski.rating === 'KUAT' ? 1 : d.piotroski.rating === 'LEMAH' ? -1 : 0;
+    votes.push({ name: 'PIOS', v: pv, label: d.piotroski.score + '/9' });
+  }
+  if (d.altman) {
+    var altv = d.altman.zone === 'AMAN' ? 1 : d.altman.zone === 'BAHAYA' ? -1 : 0;
+    votes.push({ name: 'ALTM', v: altv, label: 'Z ' + d.altman.z_score });
+  }
+  if (d.rvol) {
+    var rvolv = (d.rvol.signal === 'SANGAT TINGGI' || d.rvol.signal === 'TINGGI') ? 1 : d.rvol.signal === 'RENDAH' ? -1 : 0;
+    votes.push({ name: 'RVOL', v: rvolv, label: d.rvol.rvol + 'x' });
+  }
+
+  var buyCount  = votes.filter(function(x) { return x.v === 1; }).length;
+  var sellCount = votes.filter(function(x) { return x.v === -1; }).length;
+  var neutCount = votes.filter(function(x) { return x.v === 0; }).length;
+  var score = buyCount - sellCount;
+  var verdict, vcls;
+  if (score >= 4)       { verdict = 'BELI KUAT'; vcls = 'c-sb'; }
+  else if (score >= 2)  { verdict = 'BELI';       vcls = 'c-b'; }
+  else if (score >= -1) { verdict = 'HOLD';       vcls = 'c-h'; }
+  else if (score >= -3) { verdict = 'JUAL';       vcls = 'c-s'; }
+  else                  { verdict = 'JUAL KUAT';  vcls = 'c-ss'; }
+
+  var c = d.composite;
+  var cscore = c ? c.final : null;
+  var scoreSection = c ? (
+    '<div class="strip-mid">' +
+      '<div class="strip-score-row">' +
+        '<span class="strip-score-label">COMPOSITE SCORE</span>' +
+        '<span class="strip-score-val ' + (cscore >= 70 ? 'pos' : cscore < 35 ? 'neg' : '') + '">' + cscore + '<span style="font-weight:400;opacity:.5">/100</span></span>' +
+      '</div>' +
+      '<div class="strip-bar-wrap"><div class="strip-bar-fill" style="width:' + cscore + '%"></div></div>' +
+      '<div class="strip-signal-label">' + (c.signal || '') + '</div>' +
+    '</div>'
+  ) : '';
+
+  var quickList = votes.map(function(vt) {
+    var arrow = vt.v === 1 ? '<span class="pos">\u25B2</span>' : vt.v === -1 ? '<span class="neg">\u25BC</span>' : '<span class="neutral" style="color:var(--text-secondary)">\u2500</span>';
+    return '<div class="strip-quick-row">' +
+      '<span class="strip-quick-name">' + vt.name + '</span>' +
+      arrow +
+      '<span class="strip-quick-val">' + vt.label + '</span>' +
+    '</div>';
+  }).join('');
+
+  return '<div class="signal-strip glass">' +
+    '<div class="strip-verdict">' +
+      '<div class="strip-verdict-badge ' + vcls + '">' + verdict + '</div>' +
+      '<div class="strip-counts">' +
+        '<span class="pos">\u25B2 ' + buyCount + ' Beli</span>' +
+        '<span style="color:var(--text-secondary)">\u2500 ' + neutCount + '</span>' +
+        '<span class="neg">\u25BC ' + sellCount + ' Jual</span>' +
+      '</div>' +
+    '</div>' +
+    scoreSection +
+    '<div class="strip-quick">' + quickList + '</div>' +
+  '</div>';
+}
+
 function render(d) {
   var i = d.info;
   var ticker = d.ticker;
   var html = '';
 
   html += renderHero(d);
-  html += sec('\uD83D\uDCCC', 'KEY METRICS', renderMetrics(d), true, true);
-  html += sec('\uD83D\uDCCD', 'KEY LEVELS \u2014 Support & Resistance', renderKeyLevels(d.key_levels), true, true);
-  html += sec('\uD83D\uDCC8', 'TRADING OUTLOOK', renderOutlook(d.outlook), true, true);
+  html += renderSignalStrip(d);
 
-
-  html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
-  html += sec('\uD83C\uDFAF', 'TECHNICAL CONSENSUS', renderConsensus(d), true, true);
-  html += sec('\uD83C\uDFC6', 'COMPOSITE SCORE', renderComposite(d.composite), true, true);
-  html += sec('\uD83D\uDCCA', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true, false);
-  html += sec('\u26A0\uFE0F', 'ALTMAN Z-SCORE', renderAltman(d.altman), true, false);
+  html += '<div class="layout-pair">';
+  html += sec('', 'KEY LEVELS', renderKeyLevels(d.key_levels), true);
+  html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true);
   html += '</div>';
 
-  html += sec('\uD83D\uDCBE', 'TECHNICAL \u2014 MACD, BB, RSI, EMA, AVWAP, ADX & RVOL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap), true, true);
-  html += sec('\uD83D\uDC8E', 'RISK-ADJUSTED RETURN', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe), true, false);
-  html += sec('\uD83D\uDCB0', 'FUNDAMENTAL', renderFundamentalTabs(d), true, true);
-  html += sec('\uD83D\uDCCB', 'FINANCIAL STATEMENTS', renderFinancialTabs(d), true, true);
+  html += sec('', 'INDIKATOR TEKNIKAL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap), true);
+
+  html += '<div class="layout-pair">';
+  html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true);
+  html += sec('', 'ALTMAN Z-SCORE', renderAltman(d.altman), true);
+  html += '</div>';
+
+  html += '<div class="layout-pair">';
+  html += sec('', 'TECHNICAL CONSENSUS', renderConsensus(d), false);
+  html += sec('', 'COMPOSITE SCORE', renderComposite(d.composite), false);
+  html += '</div>';
+
+  html += '<div class="layout-pair">';
+  html += sec('', 'KEY METRICS', renderMetrics(d), false);
+  html += sec('', 'RISK-ADJUSTED RETURN', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe), false);
+  html += '</div>';
+
+  html += sec('', 'FUNDAMENTAL', renderFundamentalTabs(d), false);
+  html += sec('', 'LAPORAN KEUANGAN', renderFinancialTabs(d), false);
 
   var desc = i.longBusinessSummary
-    ? '<div style="padding:20px;font-size:12px;line-height:1.9;color:var(--text-secondary);">' + i.longBusinessSummary.substring(0, 600) + (i.longBusinessSummary.length > 600 ? '...' : '') + '</div>'
+    ? '<div style="padding:16px 18px;font-size:12px;line-height:1.9;color:var(--text-secondary);">' + i.longBusinessSummary.substring(0, 600) + (i.longBusinessSummary.length > 600 ? '...' : '') + '</div>'
     : '';
-  if (desc) {
-    html += sec('\uD83C\uDFE2', 'PROFIL PERUSAHAAN', desc, false, true);
-  }
+  if (desc) html += sec('', 'PROFIL PERUSAHAAN', desc, false);
 
   document.getElementById('result').innerHTML = html;
   show('result');
-
   initTabs();
-
   document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
-
   fetchAllAIInsights(ticker, d);
 }
