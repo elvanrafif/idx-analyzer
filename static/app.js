@@ -423,10 +423,10 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">Bollinger Bands (20,2)</div>' +
       '<div class="tech-sig ' + (sc[bs] || 'sig-netral') + '">' + b.signal + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">Rp ' + b.upper.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>Rp ' + b.mid.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">Rp ' + b.lower.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">%B Position</span><span>' + (b.pct_b * 100).toFixed(0) + '%</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">' + (b.upper != null ? 'Rp ' + b.upper.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>' + (b.mid != null ? 'Rp ' + b.mid.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">' + (b.lower != null ? 'Rp ' + b.lower.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">%B Position</span><span>' + (b.pct_b != null ? (b.pct_b * 100).toFixed(0) + '%' : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Bandwidth</span><span>' + (b.bandwidth != null ? b.bandwidth : '\u2014') + '</span></div>' +
       (b.squeeze ? '<div class="tech-row"><span class="tech-row-label">Squeeze</span><span class="badge bb">ACTIVE</span></div>' : '') +
     '</div>');
@@ -457,7 +457,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">EMA \u2014 Moving Averages</div>' +
       '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Harga</span><span>Rp ' + sma.price.toLocaleString('id') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Harga</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 21 <span style="font-size:9px;opacity:.6;">(entry)</span></span><span class="' + (sma.price > sma.ema21 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema21) + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stoploss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
@@ -467,12 +467,12 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
 
   if (avwap) {
     var avwapSigCls = avwap.signal === 'BULLISH' ? 'sig-bullish' : 'sig-bearish';
-    var avwapDiff = avwap.pct_diff > 0 ? '+' + avwap.pct_diff + '%' : avwap.pct_diff + '%';
+    var avwapDiff = avwap.pct_diff != null ? (avwap.pct_diff > 0 ? '+' + avwap.pct_diff + '%' : avwap.pct_diff + '%') : '—';
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">AVWAP <span style="font-size:9px;opacity:.6;">(Anchored VWAP)</span></div>' +
       '<div class="tech-sig ' + avwapSigCls + '">' + avwap.signal + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">AVWAP</span><span>Rp ' + avwap.value.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Harga vs AVWAP</span><span class="' + (avwap.pct_diff > 0 ? 'pos' : 'neg') + '">' + avwapDiff + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">AVWAP</span><span>' + (avwap.value != null ? 'Rp ' + avwap.value.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Harga vs AVWAP</span><span class="' + (avwap.pct_diff != null && avwap.pct_diff > 0 ? 'pos' : 'neg') + '">' + avwapDiff + '</span></div>' +
     '</div>');
   }
 
