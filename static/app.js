@@ -394,8 +394,8 @@ function renderConsensus(d) {
   '</div>';
 }
 
-function renderTechnical(mb, rsi, sma, rvol) {
-  if (!mb && !rsi && !sma && !rvol) return '<p class="no-data">Data historis tidak cukup.</p>';
+function renderTechnical(mb, rsi, sma, rvol, adx, avwap) {
+  if (!mb && !rsi && !sma && !rvol && !adx && !avwap) return '<p class="no-data">Data historis tidak cukup.</p>';
   var cards = [];
 
   if (mb) {
@@ -445,14 +445,27 @@ function renderTechnical(mb, rsi, sma, rvol) {
 
   if (sma) {
     var gcls = sma.golden_cross === true ? 'sig-golden' : sma.golden_cross === false ? 'sig-death' : 'sig-netral';
-    var glabel = sma.golden_cross === true ? 'Golden Cross' : sma.golden_cross === false ? 'Death Cross' : 'N/A';
+    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50>EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50<EMA200)' : 'N/A';
+    var fmtEma = function(v) { return v ? 'Rp ' + v.toLocaleString('id') : '<span class="na">\u2014</span>'; };
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Moving Averages</div>' +
+      '<div class="tech-card-title">EMA \u2014 Moving Averages</div>' +
       '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
       '<div class="tech-row"><span class="tech-row-label">Harga</span><span>Rp ' + sma.price.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 20</span><span class="' + (sma.price > sma.ema20 ? 'pos' : 'neg') + '">Rp ' + sma.ema20.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">SMA 50</span><span class="' + (sma.above_sma50 ? 'pos' : 'neg') + '">Rp ' + sma.sma50.toLocaleString('id') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">SMA 200</span><span>' + (sma.sma200 ? 'Rp ' + sma.sma200.toLocaleString('id') : '<span class="na">\u2014</span>') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 21 <span style="font-size:9px;opacity:.6;">(entry)</span></span><span class="' + (sma.price > sma.ema21 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema21) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stoploss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 200 <span style="font-size:9px;opacity:.6;">(trend)</span></span><span class="' + (sma.above_ema200 === true ? 'pos' : sma.above_ema200 === false ? 'neg' : '') + '">' + fmtEma(sma.ema200) + '</span></div>' +
+    '</div>');
+  }
+
+  if (avwap) {
+    var avwapSigCls = avwap.signal === 'BULLISH' ? 'sig-bullish' : 'sig-bearish';
+    var avwapDiff = avwap.pct_diff > 0 ? '+' + avwap.pct_diff + '%' : avwap.pct_diff + '%';
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">AVWAP <span style="font-size:9px;opacity:.6;">(Anchored VWAP)</span></div>' +
+      '<div class="tech-sig ' + avwapSigCls + '">' + avwap.signal + '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">AVWAP</span><span>Rp ' + avwap.value.toLocaleString('id') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Harga vs AVWAP</span><span class="' + (avwap.pct_diff > 0 ? 'pos' : 'neg') + '">' + avwapDiff + '</span></div>' +
     '</div>');
   }
 
@@ -470,6 +483,23 @@ function renderTechnical(mb, rsi, sma, rvol) {
       '</div>' +
       '<div class="tech-row"><span class="tech-row-label">Volume Hari Ini</span><span>' + (rvol.today / 1e6).toFixed(2) + 'M</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Avg 20 Hari</span><span>' + (rvol.avg / 1e6).toFixed(2) + 'M</span></div>' +
+    '</div>');
+  }
+
+  if (adx) {
+    var adxStrCls = adx.strength === 'STRONG' ? 'sig-bullish' : adx.strength === 'MODERATE' ? 'sig-netral' : 'sig-bearish';
+    var adxDirCls = adx.direction === 'BULLISH' ? 'pos' : 'neg';
+    var adxBarW = Math.min(100, adx.adx / 50 * 100);
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">ADX (14) — Trend Strength</div>' +
+      '<div class="tech-sig ' + adxStrCls + '">' + adx.strength + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;line-height:1;margin:6px 0;" class="' + adxStrCls.replace('sig-', '') + '">' + adx.adx + '</div>' +
+      '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.04);margin:8px 0;">' +
+        '<div style="height:100%;border-radius:3px;width:' + adxBarW + '%;background:linear-gradient(90deg,var(--info),var(--warn));transition:width .5s;"></div>' +
+      '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">Arah Tren</span><span class="' + adxDirCls + '">' + adx.direction + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">+DI (bullish)</span><span class="pos">' + adx.plus_di + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">-DI (bearish)</span><span class="neg">' + adx.minus_di + '</span></div>' +
     '</div>');
   }
 
@@ -744,7 +774,7 @@ function render(d) {
   html += sec('\u26A0\uFE0F', 'ALTMAN Z-SCORE', renderAltman(d.altman), true, false);
   html += '</div>';
 
-  html += sec('\uD83D\uDCBE', 'TECHNICAL \u2014 MACD, BB, RSI, MA & RVOL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol), true, true);
+  html += sec('\uD83D\uDCBE', 'TECHNICAL \u2014 MACD, BB, RSI, EMA, AVWAP, ADX & RVOL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap), true, true);
   html += sec('\uD83D\uDC8E', 'RISK-ADJUSTED RETURN', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe), true, false);
   html += sec('\uD83D\uDCB0', 'FUNDAMENTAL', renderFundamentalTabs(d), true, true);
   html += sec('\uD83D\uDCCB', 'FINANCIAL STATEMENTS', renderFinancialTabs(d), true, true);

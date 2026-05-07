@@ -11,6 +11,8 @@ from indicators.rvol import calculate_rvol
 from indicators.risk_metrics import calculate_sharpe, calculate_sortino, calculate_fcf_yield
 from indicators.composite import calculate_composite
 from indicators.key_levels import calculate_key_levels, calculate_outlook
+from indicators.adx import calculate_adx
+from indicators.avwap import calculate_avwap
 
 load_dotenv()
 app = Flask(__name__)
@@ -51,6 +53,8 @@ def analyze():
             sharpe, sortino, rvol, data['hist_1y']
         )
 
+        adx = calculate_adx(data['hist_3m'])
+        avwap = calculate_avwap(data['hist_3m'])
         key_levels = calculate_key_levels(data['hist_3m'])
         outlook = calculate_outlook(key_levels, composite)
 
@@ -68,6 +72,8 @@ def analyze():
             "rsi": rsi,
             "sma": sma,
             "rvol": rvol,
+            "adx": adx,
+            "avwap": avwap,
             "fcf_yield": fcf_yield,
             "sharpe": sharpe,
             "sortino": sortino,
