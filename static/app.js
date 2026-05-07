@@ -865,13 +865,13 @@ function render(d) {
   html += '</div>';
 
   html += '<div class="layout-pair">';
-  html += sec('', 'TECHNICAL CONSENSUS', renderConsensus(d), false);
-  html += sec('', 'COMPOSITE SCORE', renderComposite(d.composite), false);
+  html += sec('', 'TECHNICAL CONSENSUS', renderConsensus(d), true);
+  html += sec('', 'COMPOSITE SCORE', renderComposite(d.composite), true);
   html += '</div>';
 
   html += '<div class="layout-pair">';
-  html += sec('', 'KEY METRICS', renderMetrics(d), false);
-  html += sec('', 'RISK-ADJUSTED RETURN', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe), false);
+  html += sec('', 'KEY METRICS', renderMetrics(d), true);
+  html += sec('', 'RISK-ADJUSTED RETURN', renderRiskAdj(d.fcf_yield, d.sortino, d.sharpe), true);
   html += '</div>';
 
   html += sec('', 'FUNDAMENTAL', renderFundamentalTabs(d), false);
