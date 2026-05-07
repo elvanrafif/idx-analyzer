@@ -2,6 +2,9 @@ def calculate_macd_bb(hist_6m):
     if hist_6m is None or len(hist_6m) < 30:
         return None
     try:
+        hist_6m = hist_6m.dropna(subset=['Close'])
+        if len(hist_6m) < 30:
+            return None
         close = hist_6m['Close']
         ema12 = close.ewm(span=12, adjust=False).mean()
         ema26 = close.ewm(span=26, adjust=False).mean()

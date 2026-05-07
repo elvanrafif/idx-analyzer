@@ -3,6 +3,9 @@ def calculate_avwap(hist):
     if hist is None or len(hist) < 5:
         return None
     try:
+        hist   = hist.dropna(subset=['Close', 'High', 'Low', 'Volume'])
+        if len(hist) < 5:
+            return None
         close  = hist['Close']
         high   = hist['High']
         low    = hist['Low']

@@ -2,7 +2,9 @@ def calculate_sma(hist_1y):
     if hist_1y is None or len(hist_1y) < 50:
         return None
     try:
-        close = hist_1y['Close']
+        close = hist_1y['Close'].dropna()
+        if len(close) < 50:
+            return None
         price  = round(float(close.iloc[-1]), 0)
         ema9   = round(float(close.ewm(span=9,   adjust=False).mean().iloc[-1]), 0)
         ema21  = round(float(close.ewm(span=21,  adjust=False).mean().iloc[-1]), 0)

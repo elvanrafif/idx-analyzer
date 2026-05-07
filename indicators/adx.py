@@ -2,6 +2,9 @@ def calculate_adx(hist, period=14):
     if hist is None or len(hist) < period + 5:
         return None
     try:
+        hist  = hist.dropna(subset=['Close', 'High', 'Low'])
+        if len(hist) < period + 5:
+            return None
         high  = hist['High']
         low   = hist['Low']
         close = hist['Close']

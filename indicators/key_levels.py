@@ -7,6 +7,9 @@ def calculate_key_levels(hist):
     if hist is None or len(hist) < 5:
         return None
     try:
+        hist = hist.dropna(subset=['Close', 'High', 'Low'])
+        if len(hist) < 5:
+            return None
         recent = hist.tail(5)
         high = float(recent['High'].max())
         low = float(recent['Low'].min())
