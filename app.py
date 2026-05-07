@@ -40,12 +40,12 @@ def index():
 def analyze():
     ticker = request.args.get('ticker', '').strip().upper()
     if not ticker:
-        return jsonify({"error": "Ticker tidak boleh kosong."})
+        return jsonify({"error": "Ticker cannot be empty."})
 
     try:
         data = fetch_ticker_data(ticker)
         if data is None:
-            return jsonify({"error": f"Data emiten {ticker} tidak ditemukan di IHSG."})
+            return jsonify({"error": f"Ticker {ticker} not found on IDX (Indonesia Stock Exchange)."})
 
         info = data['info']
         bs = data['balance_sheet']
@@ -100,7 +100,7 @@ def analyze():
         }))
     except Exception as e:
         print(f"ERROR: {str(e)}")
-        return jsonify({"error": f"Error teknis: {str(e)}"})
+        return jsonify({"error": f"Technical error: {str(e)}"})
 
 
 @app.route('/api/ai-insights', methods=['POST'])

@@ -1,22 +1,3 @@
-const themes = {
-  dark:  { icon: '\u2600\uFE0F', label: 'Light Mode', next: 'light' },
-  light: { icon: '\uD83C\uDF19', label: 'Dark Mode',  next: 'dark'  }
-};
-
-function applyTheme(t) {
-  document.documentElement.setAttribute('data-theme', t);
-  document.getElementById('t-icon').textContent  = themes[t].icon;
-  document.getElementById('t-label').textContent = themes[t].label;
-  localStorage.setItem('idx-theme', t);
-}
-
-function toggleTheme() {
-  const cur = document.documentElement.getAttribute('data-theme') || 'dark';
-  applyTheme(themes[cur].next);
-}
-
-applyTheme(localStorage.getItem('idx-theme') || 'dark');
-
 const inp = document.getElementById('ticker-input');
 inp.addEventListener('keydown', e => { if (e.key === 'Enter') analyze(); });
 inp.addEventListener('input',   () => { inp.value = inp.value.toUpperCase(); });
@@ -41,7 +22,7 @@ async function analyze() {
   } catch (e) {
     hide('loading');
     document.getElementById('search-btn').disabled = false;
-    showErr('Koneksi gagal atau limit tercapai. Tunggu beberapa saat.');
+    showErr('Connection failed or rate limit reached. Please wait a moment.');
     console.error('fetch/parse error:', e);
   }
 }
@@ -227,7 +208,7 @@ function insertAIBox(section, html) {
     'consensus':    function() { byTitle('CONSENSUS'); },
     'piotroski':    function() { byTitle('PIOTROSKI'); },
     'altman':       function() { byTitle('ALTMAN'); },
-    'technical':    function() { byTitle('TEKNIKAL'); },
+    'technical':    function() { byTitle('TECHNICAL'); },
     'key_levels':   function() { byTitle('KEY LEVEL'); },
   };
   if (targets[section]) targets[section]();
@@ -266,7 +247,7 @@ function renderHero(d) {
     '</div>' +
     '<div class="hero-price">' +
       '<div class="price-main">Rp ' + (price ? price.toLocaleString('id') : '\u2014') + '</div>' +
-      '<div class="price-change ' + chgCls + '">' + chgStr + ' hari ini</div>' +
+      '<div class="price-change ' + chgCls + '">' + chgStr + ' today</div>' +
     '</div>' +
   '</div>';
 }
@@ -284,7 +265,7 @@ function renderMetrics(d) {
     ['52wk High', '<span class="pos">' + fnum(i.fiftyTwoWeekHigh, 'idr') + '</span>'],
     ['52wk Low', '<span class="neg">' + fnum(i.fiftyTwoWeekLow, 'idr') + '</span>'],
     ['52wk Position', wk52pos || '<span class="na">\u2014</span>'],
-    ['Volume Hari Ini', fnum(i.regularMarketVolume)],
+    ['Today\'s Volume', fnum(i.regularMarketVolume)],
     ['Avg Volume 10d', fnum(i.averageVolume10days)]
   ];
 
@@ -304,7 +285,7 @@ function renderMetrics(d) {
       }).join('') + '</div>';
   }
 
-  return '<div class="metrics-grid">' + metricCard('STATISTIK', left) + metricCard('SCORING', right) + '</div>';
+  return '<div class="metrics-grid">' + metricCard('STATS', left) + metricCard('SCORING', right) + '</div>';
 }
 
 function renderComposite(c) {
@@ -350,17 +331,17 @@ function renderConsensus(d) {
     votes.push({ name: 'RSI (14)', label: d.rsi.signal, cls: rcls, vote: rv, detail: 'RSI ' + d.rsi.value });
   }
   if (d.piotroski) {
-    var pv = d.piotroski.rating === 'KUAT' ? 1 : d.piotroski.rating === 'LEMAH' ? -1 : 0;
-    var pcls = d.piotroski.rating === 'KUAT' ? 'sig-bullish' : d.piotroski.rating === 'LEMAH' ? 'sig-bearish' : 'sig-netral';
-    votes.push({ name: 'Piotroski F-Score', label: d.piotroski.rating, cls: pcls, vote: pv, detail: d.piotroski.score + '/9 poin' });
+    var pv = d.piotroski.rating === 'STRONG' ? 1 : d.piotroski.rating === 'WEAK' ? -1 : 0;
+    var pcls = d.piotroski.rating === 'STRONG' ? 'sig-bullish' : d.piotroski.rating === 'WEAK' ? 'sig-bearish' : 'sig-netral';
+    votes.push({ name: 'Piotroski F-Score', label: d.piotroski.rating, cls: pcls, vote: pv, detail: d.piotroski.score + '/9 pts' });
   }
   if (d.altman) {
-    var av = d.altman.zone === 'AMAN' ? 1 : d.altman.zone === 'BAHAYA' ? -1 : 0;
-    var acls = d.altman.zone === 'AMAN' ? 'sig-bullish' : d.altman.zone === 'BAHAYA' ? 'sig-bearish' : 'sig-netral';
+    var av = d.altman.zone === 'SAFE' ? 1 : d.altman.zone === 'DANGER' ? -1 : 0;
+    var acls = d.altman.zone === 'SAFE' ? 'sig-bullish' : d.altman.zone === 'DANGER' ? 'sig-bearish' : 'sig-netral';
     votes.push({ name: 'Altman Z-Score', label: d.altman.zone, cls: acls, vote: av, detail: 'Z ' + d.altman.z_score });
   }
   if (d.rvol) {
-    var rvv = (d.rvol.signal === 'SANGAT TINGGI' || d.rvol.signal === 'TINGGI') ? 1 : d.rvol.signal === 'RENDAH' ? -1 : 0;
+    var rvv = (d.rvol.signal === 'VERY HIGH' || d.rvol.signal === 'HIGH') ? 1 : d.rvol.signal === 'LOW' ? -1 : 0;
     var rvcls = rvv === 1 ? 'sig-bullish' : rvv === -1 ? 'sig-bearish' : 'sig-netral';
     votes.push({ name: 'Rel. Volume', label: d.rvol.signal, cls: rvcls, vote: rvv, detail: d.rvol.rvol + 'x avg' });
   }
@@ -414,10 +395,10 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">EMA — Moving Averages</div>' +
       '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
-      '<div class="tech-row"><span class="tech-row-label">Harga</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Price</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 21 <span style="font-size:9px;opacity:.6;">(entry)</span></span><span class="' + (sma.price > sma.ema21 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema21) + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stoploss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">EMA 50 <span style="font-size:9px;opacity:.6;">(stop loss)</span></span><span class="' + (sma.above_ema50 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema50) + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 200 <span style="font-size:9px;opacity:.6;">(trend)</span></span><span class="' + (sma.above_ema200 === true ? 'pos' : sma.above_ema200 === false ? 'neg' : '') + '">' + fmtEma(sma.ema200) + '</span></div>' +
     '</div>');
   }
@@ -523,7 +504,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
 
   // 8. RVOL
   if (rvol) {
-    var rvsc = rvol.signal === 'SANGAT TINGGI' ? 'bg' : rvol.signal === 'TINGGI' ? 'by' : rvol.signal === 'NORMAL' ? 'bb' : 'br';
+    var rvsc = rvol.signal === 'VERY HIGH' ? 'bg' : rvol.signal === 'HIGH' ? 'by' : rvol.signal === 'NORMAL' ? 'bb' : 'br';
     var barW = Math.min(100, rvol.rvol / 4 * 100);
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">Relative Volume</div>' +
@@ -542,7 +523,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
   // 9. OBV
   if (obv) {
     var obvSigCls = sc[(obv.signal || '').toLowerCase()] || 'sig-netral';
-    var obvTrCls = obv.trend === 'NAIK' ? 'pos' : 'neg';
+    var obvTrCls = obv.trend === 'UP' ? 'pos' : 'neg';
     var obvDivBadge = obv.divergence ? '<span class="badge by" style="font-size:9px;margin-left:6px;">DIVERGENCE</span>' : '';
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">OBV <span style="font-size:9px;opacity:.6;">(On-Balance Volume)</span></div>' +
@@ -551,7 +532,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
       '</div>' +
       '<div class="tech-row"><span class="tech-row-label">OBV</span><span class="' + obvTrCls + '">' + obv.value + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Tren OBV</span><span class="' + obvTrCls + '">' + obv.trend + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Tren EMA10</span><span class="' + (obv.ema_trend === 'NAIK' ? 'pos' : 'neg') + '">' + obv.ema_trend + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Tren EMA10</span><span class="' + (obv.ema_trend === 'UP' ? 'pos' : 'neg') + '">' + obv.ema_trend + '</span></div>' +
     '</div>');
   }
 
@@ -599,10 +580,10 @@ function renderFundamentalTabs(d) {
   var tabsId = 'ftabs-' + Math.random().toString(36).slice(2, 8);
   return '<div id="' + tabsId + '">' +
     '<div class="tabs">' +
-      '<div class="tab active" data-panel="' + tabsId + '-val">Valuasi</div>' +
-      '<div class="tab" data-panel="' + tabsId + '-prof">Profitabilitas</div>' +
-      '<div class="tab" data-panel="' + tabsId + '-health">Kesehatan</div>' +
-      '<div class="tab" data-panel="' + tabsId + '-div">Dividen</div>' +
+      '<div class="tab active" data-panel="' + tabsId + '-val">Valuation</div>' +
+      '<div class="tab" data-panel="' + tabsId + '-prof">Profitability</div>' +
+      '<div class="tab" data-panel="' + tabsId + '-health">Financial Health</div>' +
+      '<div class="tab" data-panel="' + tabsId + '-div">Dividend</div>' +
     '</div>' +
     '<div class="tab-content">' +
       '<div class="tab-panel active" id="' + tabsId + '-val">' + dtable(valRows) + '</div>' +
@@ -614,22 +595,22 @@ function renderFundamentalTabs(d) {
 }
 
 function renderFinancialTabs(d) {
-  var IS = [['Total Revenue', 'Revenue'], ['Cost Of Revenue', 'Beban Pendapatan'],
-    ['Gross Profit', 'Laba Kotor'], ['Operating Income', 'Laba Operasi'],
-    ['EBITDA', 'EBITDA'], ['Net Income', 'Laba Bersih'], ['Diluted EPS', 'EPS Diluted']];
-  var BS = [['Total Assets', 'Total Aset'],
-    ['Total Liabilities Net Minority Interest', 'Total Liabilitas'],
-    ['Stockholders Equity', 'Total Ekuitas'],
-    ['Cash And Cash Equivalents', 'Kas & Setara'],
-    ['Total Debt', 'Total Utang'], ['Net Debt', 'Net Debt'],
-    ['Inventory', 'Persediaan'], ['Accounts Receivable', 'Piutang Usaha']];
-  var CF = [['Operating Cash Flow', 'Arus Kas Operasi'],
-    ['Investing Cash Flow', 'Arus Kas Investasi'],
-    ['Financing Cash Flow', 'Arus Kas Pendanaan'],
+  var IS = [['Total Revenue', 'Revenue'], ['Cost Of Revenue', 'Cost of Revenue'],
+    ['Gross Profit', 'Gross Profit'], ['Operating Income', 'Operating Income'],
+    ['EBITDA', 'EBITDA'], ['Net Income', 'Net Income'], ['Diluted EPS', 'Diluted EPS']];
+  var BS = [['Total Assets', 'Total Assets'],
+    ['Total Liabilities Net Minority Interest', 'Total Liabilities'],
+    ['Stockholders Equity', 'Stockholders Equity'],
+    ['Cash And Cash Equivalents', 'Cash & Equivalents'],
+    ['Total Debt', 'Total Debt'], ['Net Debt', 'Net Debt'],
+    ['Inventory', 'Inventory'], ['Accounts Receivable', 'Accounts Receivable']];
+  var CF = [['Operating Cash Flow', 'Operating Cash Flow'],
+    ['Investing Cash Flow', 'Investing Cash Flow'],
+    ['Financing Cash Flow', 'Financing Cash Flow'],
     ['Free Cash Flow', 'Free Cash Flow'],
-    ['Capital Expenditure', 'Capex'], ['Dividends Paid', 'Dividen Dibayar']];
-  var QT = [['Total Revenue', 'Revenue'], ['Gross Profit', 'Laba Kotor'],
-    ['Operating Income', 'Laba Operasi'], ['Net Income', 'Laba Bersih']];
+    ['Capital Expenditure', 'Capex'], ['Dividends Paid', 'Dividends Paid']];
+  var QT = [['Total Revenue', 'Revenue'], ['Gross Profit', 'Gross Profit'],
+    ['Operating Income', 'Operating Income'], ['Net Income', 'Net Income']];
 
   var tabsId = 'fintabs-' + Math.random().toString(36).slice(2, 8);
   return '<div id="' + tabsId + '">' +
@@ -650,10 +631,10 @@ function renderFinancialTabs(d) {
 
 function renderPiotroski(p) {
   if (!p) return '<p class="no-data">Data laporan keuangan tidak cukup untuk F-Score.</p>';
-  var rCls = p.rating === 'KUAT' ? 'bg' : p.rating === 'CUKUP' ? 'by' : 'br';
+  var rCls = p.rating === 'STRONG' ? 'bg' : p.rating === 'MODERATE' ? 'by' : 'br';
   var trendBadge = '';
   if (p.trend) {
-    var tCls = p.trend === 'NAIK' ? 'trend-up' : p.trend === 'TURUN' ? 'trend-down' : 'trend-stable';
+    var tCls = p.trend === 'UP' ? 'trend-up' : p.trend === 'DOWN' ? 'trend-down' : 'trend-stable';
     trendBadge = ' <span class="score-trend ' + tCls + '">' + p.trend + '</span>';
   }
 
@@ -678,8 +659,8 @@ function renderPiotroski(p) {
 
 function renderAltman(a) {
   if (!a) return '<p class="no-data">Data balance sheet tidak cukup untuk Altman Z-Score.</p>';
-  var zCls = a.zone === 'AMAN' ? 'bg' : a.zone === 'WASPADA' ? 'by' : 'br';
-  var sCls = a.zone === 'AMAN' ? 'pos' : a.zone === 'BAHAYA' ? 'neg' : '';
+  var zCls = a.zone === 'SAFE' ? 'bg' : a.zone === 'CAUTION' ? 'by' : 'br';
+  var sCls = a.zone === 'SAFE' ? 'pos' : a.zone === 'DANGER' ? 'neg' : '';
   return '<div class="altman-wrap">' +
     '<div>' +
       '<div class="altman-score ' + sCls + '">' + a.z_score + '</div>' +
@@ -701,7 +682,7 @@ function renderAltman(a) {
 function renderRiskAdj(fcf, sortino, sharpe) {
   var rows = [];
   if (fcf) {
-    rows.push(['FCF Yield', fcf.yield * 100, fcf.signal === 'MENARIK' ? '\uD83D\uDFE2 Menarik' : fcf.signal === 'NETRAL' ? '\uD83D\uDFE1 Netral' : fcf.signal === 'RENDAH' ? '\uD83D\uDFE0 Rendah' : '\uD83D\uDD34 Negatif']);
+    rows.push(['FCF Yield', fcf.yield * 100, fcf.signal === 'MENARIK' ? '\uD83D\uDFE2 Menarik' : fcf.signal === 'NEUTRAL' ? '\uD83D\uDFE1 Netral' : fcf.signal === 'LOW' ? '\uD83D\uDFE0 Rendah' : '\uD83D\uDD34 Negatif']);
     rows.push(['Free Cash Flow', fcf.fcf, '']);
   }
   if (sortino != null) rows.push(['Sortino Ratio', sortino, sortino >= 1 ? '\uD83D\uDFE2 Excellent' : sortino >= 0.5 ? '\uD83D\uDFE1 Bagus' : sortino >= 0 ? '\uD83D\uDFE0 Rendah' : '\uD83D\uDD34 Negatif']);
@@ -823,22 +804,22 @@ function renderSignalStrip(d) {
   }
   if (d.sma) {
     var sv = d.sma.golden_cross === true ? 1 : d.sma.golden_cross === false ? -1 : 0;
-    votes.push({ name: 'EMA', v: sv, label: d.sma.golden_cross === true ? 'GOLDEN' : d.sma.golden_cross === false ? 'DEATH' : 'NETRAL' });
+    votes.push({ name: 'EMA', v: sv, label: d.sma.golden_cross === true ? 'GOLDEN' : d.sma.golden_cross === false ? 'DEATH' : 'NEUTRAL' });
   }
   if (d.adx) {
     var adxv = (d.adx.direction === 'BULLISH' && d.adx.strength !== 'WEAK') ? 1 : (d.adx.direction === 'BEARISH' && d.adx.strength !== 'WEAK') ? -1 : 0;
     votes.push({ name: 'ADX', v: adxv, label: d.adx.strength });
   }
   if (d.piotroski) {
-    var pv = d.piotroski.rating === 'KUAT' ? 1 : d.piotroski.rating === 'LEMAH' ? -1 : 0;
+    var pv = d.piotroski.rating === 'STRONG' ? 1 : d.piotroski.rating === 'WEAK' ? -1 : 0;
     votes.push({ name: 'PIOS', v: pv, label: d.piotroski.score + '/9' });
   }
   if (d.altman) {
-    var altv = d.altman.zone === 'AMAN' ? 1 : d.altman.zone === 'BAHAYA' ? -1 : 0;
+    var altv = d.altman.zone === 'SAFE' ? 1 : d.altman.zone === 'DANGER' ? -1 : 0;
     votes.push({ name: 'ALTM', v: altv, label: 'Z ' + d.altman.z_score });
   }
   if (d.rvol) {
-    var rvolv = (d.rvol.signal === 'SANGAT TINGGI' || d.rvol.signal === 'TINGGI') ? 1 : d.rvol.signal === 'RENDAH' ? -1 : 0;
+    var rvolv = (d.rvol.signal === 'VERY HIGH' || d.rvol.signal === 'HIGH') ? 1 : d.rvol.signal === 'LOW' ? -1 : 0;
     votes.push({ name: 'RVOL', v: rvolv, label: d.rvol.rvol + 'x' });
   }
   if (d.stochastic) {
@@ -855,11 +836,11 @@ function renderSignalStrip(d) {
   var neutCount = votes.filter(function(x) { return x.v === 0; }).length;
   var score = buyCount - sellCount;
   var verdict, vcls;
-  if (score >= 4)       { verdict = 'BELI KUAT'; vcls = 'c-sb'; }
-  else if (score >= 2)  { verdict = 'BELI';       vcls = 'c-b'; }
+  if (score >= 4)       { verdict = 'STRONG BUY'; vcls = 'c-sb'; }
+  else if (score >= 2)  { verdict = 'BUY';       vcls = 'c-b'; }
   else if (score >= -1) { verdict = 'HOLD';       vcls = 'c-h'; }
-  else if (score >= -3) { verdict = 'JUAL';       vcls = 'c-s'; }
-  else                  { verdict = 'JUAL KUAT';  vcls = 'c-ss'; }
+  else if (score >= -3) { verdict = 'SELL';       vcls = 'c-s'; }
+  else                  { verdict = 'STRONG SELL';  vcls = 'c-ss'; }
 
   var c = d.composite;
   var cscore = c ? c.final : null;
@@ -910,7 +891,7 @@ function render(d) {
   html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true);
   html += '</div>';
 
-  html += sec('', 'INDIKATOR TEKNIKAL', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv), true);
+  html += sec('', 'TECHNICAL INDICATORS', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv), true);
 
   html += '<div class="layout-pair">';
   html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true);
@@ -928,12 +909,12 @@ function render(d) {
   html += '</div>';
 
   html += sec('', 'FUNDAMENTAL', renderFundamentalTabs(d), false);
-  html += sec('', 'LAPORAN KEUANGAN', renderFinancialTabs(d), false);
+  html += sec('', 'FINANCIAL STATEMENTS', renderFinancialTabs(d), false);
 
   var desc = i.longBusinessSummary
     ? '<div style="padding:16px 18px;font-size:12px;line-height:1.9;color:var(--text-secondary);">' + i.longBusinessSummary.substring(0, 600) + (i.longBusinessSummary.length > 600 ? '...' : '') + '</div>'
     : '';
-  if (desc) html += sec('', 'PROFIL PERUSAHAAN', desc, false);
+  if (desc) html += sec('', 'COMPANY PROFILE', desc, false);
 
   document.getElementById('result').innerHTML = html;
   show('result');

@@ -5,44 +5,8 @@
    Surfaces: solid, no decorative blur
    ============================================================ */
 
-/* ── LIGHT THEME ── */
-[data-theme="light"] {
-  --bg:          oklch(95% 0.006 258);
-  --surface:     oklch(99.5% 0.003 258);
-  --surface-2:   oklch(93% 0.007 258);
-  --border:      oklch(87% 0.007 258);
-  --border-mid:  oklch(78% 0.009 258);
-
-  --text:            oklch(20% 0.01 258);
-  --text-secondary:  oklch(44% 0.01 258);
-  --strong:          oklch(10% 0.008 258);
-
-  --accent:  oklch(50% 0.19 185);
-  --pos:     oklch(44% 0.18 145);
-  --neg:     oklch(44% 0.22 22);
-  --warn:    oklch(50% 0.17 78);
-  --info:    oklch(50% 0.19 185);
-
-  --badge-pos-bg:  oklch(44% 0.18 145 / 10%);
-  --badge-neg-bg:  oklch(44% 0.22 22 / 10%);
-  --badge-warn-bg: oklch(50% 0.17 78 / 10%);
-  --badge-info-bg: oklch(50% 0.19 185 / 10%);
-
-  /* legacy compat */
-  --glass-bg:         var(--surface);
-  --glass-border:     var(--border);
-  --glass-shadow:     0 1px 3px oklch(0% 0 0 / 8%);
-  --glass-blur:       blur(0px);
-  --tab-bg:           var(--surface-2);
-  --tab-active:       var(--accent);
-  --tab-active-text:  oklch(99% 0 0);
-  --ai-bg:            oklch(50% 0.19 185 / 8%);
-  --ai-border:        var(--accent);
-  --ai-text:          var(--accent);
-}
-
-/* ── DARK THEME (DEFAULT) ── */
-[data-theme="dark"], :root {
+/* ── DARK THEME ── */
+:root, [data-theme="dark"] {
   --bg:          oklch(9% 0.008 258);
   --surface:     oklch(13.5% 0.008 258);
   --surface-2:   oklch(18% 0.009 258);
@@ -125,41 +89,6 @@ body {
   margin-top: 3px; letter-spacing: 0.8px; text-transform: uppercase;
 }
 
-/* ── THEME TOGGLE ── */
-.theme-toggle {
-  display: flex; align-items: center; gap: 8px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 50px; padding: 6px 14px 6px 10px;
-  cursor: pointer; user-select: none; flex-shrink: 0;
-  transition: border-color 0.2s;
-}
-.theme-toggle:hover { border-color: var(--border-mid); }
-
-.toggle-track {
-  width: 28px; height: 16px;
-  background: var(--border-mid);
-  border-radius: 8px; position: relative;
-  transition: background 0.25s;
-  flex-shrink: 0;
-}
-[data-theme="light"] .toggle-track { background: var(--accent); }
-
-.toggle-thumb {
-  position: absolute; top: 2px; left: 2px;
-  width: 12px; height: 12px;
-  background: oklch(99% 0 0);
-  border-radius: 50%;
-  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-  box-shadow: 0 1px 3px oklch(0% 0 0 / 30%);
-}
-[data-theme="light"] .toggle-thumb { transform: translateX(12px); }
-
-.toggle-label {
-  font-family: 'JetBrains Mono', monospace;
-  font-size: 9px; color: var(--text-secondary);
-  letter-spacing: 0.5px; min-width: 46px;
-}
 
 /* ── SEARCH ── */
 .search-wrap {
