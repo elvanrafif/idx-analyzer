@@ -16,6 +16,10 @@ from indicators.adx import calculate_adx
 from indicators.avwap import calculate_avwap
 from indicators.stochastic import calculate_stochastic
 from indicators.obv import calculate_obv
+from indicators.atr import calculate_atr
+from indicators.mfi import calculate_mfi
+from indicators.williams_r import calculate_williams_r
+from indicators.fundamental import calculate_dividend_yield, calculate_ev_ebitda
 
 load_dotenv()
 app = Flask(__name__)
@@ -61,17 +65,26 @@ def analyze():
         sma = calculate_sma(data['hist_1y'])
         rvol = calculate_rvol(data['hist_3m'])
         fcf_yield = calculate_fcf_yield(info)
-        composite = calculate_composite(
-            info, piotroski, altman, macd_bb, rsi,
-            sharpe, sortino, rvol, data['hist_1y']
-        )
 
         adx = calculate_adx(data['hist_3m'])
         avwap = calculate_avwap(data['hist_3m'])
         stochastic = calculate_stochastic(data['hist_3m'])
         obv = calculate_obv(data['hist_1y'])
+        atr        = calculate_atr(data['hist_6m'])
+        mfi        = calculate_mfi(data['hist_3m'])
+        williams_r = calculate_williams_r(data['hist_3m'])
+        div_yield  = calculate_dividend_yield(info)
+        ev_ebitda  = calculate_ev_ebitda(info)
+
+        composite = calculate_composite(
+            info, piotroski, altman, macd_bb, rsi,
+            sharpe, sortino, rvol, data['hist_1y'],
+            adx_data=adx, stoch_data=stochastic, obv_data=obv,
+            mfi_data=mfi, willr_data=williams_r,
+        )
+
         key_levels = calculate_key_levels(data['hist_3m'])
-        outlook = calculate_outlook(key_levels, composite)
+        outlook = calculate_outlook(key_levels, composite, atr=atr)
 
         return jsonify(clean_nan({
             "ticker": ticker,
@@ -91,6 +104,11 @@ def analyze():
             "avwap": avwap,
             "stochastic": stochastic,
             "obv": obv,
+            "atr":        atr,
+            "mfi":        mfi,
+            "williams_r": williams_r,
+            "div_yield":  div_yield,
+            "ev_ebitda":  ev_ebitda,
             "fcf_yield": fcf_yield,
             "sharpe": sharpe,
             "sortino": sortino,
