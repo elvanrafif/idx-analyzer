@@ -57,7 +57,7 @@ def analyze():
         piotroski = calculate_piotroski(bs, fs, cf)
         altman = calculate_altman_z(bs, fs)
         macd_bb = calculate_macd_bb(data['hist_6m'])
-        rsi = calculate_rsi(data['hist_3m'])
+        rsi = calculate_rsi(data['hist_6m'])
         sma = calculate_sma(data['hist_1y'])
         rvol = calculate_rvol(data['hist_3m'])
         fcf_yield = calculate_fcf_yield(info)
