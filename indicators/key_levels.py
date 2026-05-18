@@ -34,7 +34,7 @@ def calculate_key_levels(hist):
         return None
 
 
-def calculate_outlook(key_levels, composite):
+def calculate_outlook(key_levels, composite, atr=None):
     """Generate trading outlook from key levels and composite score."""
     if not key_levels:
         return None
@@ -56,7 +56,13 @@ def calculate_outlook(key_levels, composite):
             stop_loss = s1
 
         entry_mid = (entry_low + entry_high) / 2
-        sl_pct = abs((entry_mid - stop_loss) / entry_mid * 100) if entry_mid else 0
+
+        # ATR-based stop loss overrides pivot-based when available
+        if atr and atr.get('value') and entry_mid:
+            stop_loss = round(entry_mid - 2 * atr['value'], 0)
+            sl_pct    = round(2 * atr['pct'], 1)
+        else:
+            sl_pct = abs((entry_mid - stop_loss) / entry_mid * 100) if entry_mid else 0
         t1_pct = (t1 - entry_mid) / entry_mid * 100 if entry_mid else 0
         t2_pct = (t2 - entry_mid) / entry_mid * 100 if entry_mid else 0
         rr = round(t2_pct / sl_pct, 1) if sl_pct > 0 else 0
