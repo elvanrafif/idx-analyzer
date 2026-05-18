@@ -209,7 +209,7 @@ body {
 .up { color: var(--pos); } .down { color: var(--neg); } .neutral { color: var(--text-secondary); }
 
 /* ── SECTION ── */
-.section { margin-bottom: 12px; }
+.section { margin-bottom: 12px; overflow: visible; }
 .layout-pair .section { margin-bottom: 0; }
 .section-header {
   display: flex; align-items: center; gap: 10px;
