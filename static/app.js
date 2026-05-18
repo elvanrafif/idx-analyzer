@@ -404,7 +404,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
   // 1. EMA
   if (sma) {
     var gcls = sma.golden_cross === true ? 'sig-golden' : sma.golden_cross === false ? 'sig-death' : 'sig-netral';
-    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50>EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50<EMA200)' : 'N/A';
+    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50&gt;EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50&lt;EMA200)' : 'N/A';
     var fmtEma = function(v) { return v != null ? 'Rp ' + v.toLocaleString('id') : '<span class="na">—</span>'; };
     cards.push('<div class="tech-card">' +
       '<div class="tech-card-title">EMA — Moving Averages</div>' +
