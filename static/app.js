@@ -587,14 +587,14 @@ function secTipTitle(key, labelHtml) {
       t.refs.map(function(r) { return '<span class="tip-ref ' + r.color + '">' + r.label + '</span>'; }).join('') +
     '</div>';
   }
-  return '<span class="tip-wrap">' +
+  return '<div class="tip-wrap">' +
     labelHtml + ' <span class="tip-icon">ⓘ</span>' +
     '<div class="tip-box">' +
       '<div class="tip-title">' + t.title + '</div>' +
       '<div class="tip-desc">' + t.desc + '</div>' +
       refsHtml +
     '</div>' +
-  '</span>';
+  '</div>';
 }
 
 function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, willr) {
