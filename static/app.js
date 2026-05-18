@@ -78,13 +78,14 @@ function badge(txt) {
   return '<span class="badge ' + (m[txt[0]] || 'bb') + '">' + txt + '</span>';
 }
 
-function sec(icon, title, body, open) {
+function sec(icon, title, body, open, tooltipKey) {
   var id = 's' + Math.random().toString(36).slice(2, 8);
   var iconHtml = icon ? '<div class="section-icon">' + icon + '</div>' : '';
+  var titleHtml = tooltipKey ? secTipTitle(tooltipKey, title) : title;
   return '<div class="section glass' + (open ? '' : ' collapsed') + '" id="' + id + '">' +
     '<div class="section-header" onclick="document.getElementById(\'' + id + '\').classList.toggle(\'collapsed\')">' +
       iconHtml +
-      '<div class="section-title">' + title + '</div>' +
+      '<div class="section-title">' + titleHtml + '</div>' +
       '<div class="section-toggle">\u25BC</div>' +
     '</div>' +
     '<div class="section-divider"></div>' +
@@ -282,14 +283,15 @@ function renderMetrics(d) {
     ['Target Upside', upside != null ? '<span class="' + (upside > 0 ? 'pos' : 'neg') + '">' + (upside > 0 ? '+' : '') + upside + '%</span>' : '<span class="na">\u2014</span>']
   ];
 
-  function metricCard(title, rows) {
-    return '<div class="metric-card"><div class="metric-card-title">' + title + '</div>' +
+  function metricCard(title, rows, tooltipKey) {
+    var titleHtml = tooltipKey ? secTipTitle(tooltipKey, title) : title;
+    return '<div class="metric-card"><div class="metric-card-title">' + titleHtml + '</div>' +
       rows.map(function(r) {
         return '<div class="metric-row"><span class="metric-label">' + r[0] + '</span><span class="metric-value">' + r[1] + '</span></div>';
       }).join('') + '</div>';
   }
 
-  return '<div class="metrics-grid">' + metricCard('STATS', left) + metricCard('SCORING', right) + '</div>';
+  return '<div class="metrics-grid">' + metricCard('STATS', left, 'stats') + metricCard('SCORING', right, 'scoring') + '</div>';
 }
 
 function renderComposite(c) {
@@ -1161,20 +1163,20 @@ function render(d) {
   html += renderSignalStrip(d);
 
   html += '<div class="layout-pair">';
-  html += sec('', 'KEY LEVELS', renderKeyLevels(d.key_levels), true);
-  html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true);
+  html += sec('', 'KEY LEVELS', renderKeyLevels(d.key_levels), true, 'key_levels');
+  html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true, 'outlook');
   html += '</div>';
 
-  html += sec('', 'TECHNICAL INDICATORS', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv, d.atr, d.mfi, d.williams_r), true);
+  html += sec('', 'TECHNICAL INDICATORS', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv, d.atr, d.mfi, d.williams_r), true, 'technical_indicators');
 
   html += '<div class="layout-pair">';
-  html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true);
-  html += sec('', 'ALTMAN Z-SCORE', renderAltman(d.altman), true);
+  html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true, 'piotroski');
+  html += sec('', 'ALTMAN Z-SCORE', renderAltman(d.altman), true, 'altman');
   html += '</div>';
 
   html += '<div class="layout-pair">';
-  html += sec('', 'TECHNICAL CONSENSUS', renderConsensus(d), true);
-  html += sec('', 'COMPOSITE SCORE', renderComposite(d.composite), true);
+  html += sec('', 'TECHNICAL CONSENSUS', renderConsensus(d), true, 'consensus');
+  html += sec('', 'COMPOSITE SCORE', renderComposite(d.composite), true, 'composite');
   html += '</div>';
 
   html += '<div class="layout-pair">';
