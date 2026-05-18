@@ -453,6 +453,46 @@ body {
 .tech-row:last-child { border-bottom: none; }
 .tech-row-label { color: var(--text-secondary); font-weight: 500; }
 
+/* ── TOOLTIPS ── */
+.tip-wrap { position: relative; }
+div.tip-wrap { display: block; }
+span.tip-wrap { display: inline-flex; align-items: center; }
+.tip-icon {
+  font-size: 9px; color: var(--text-secondary);
+  opacity: 0.4; margin-left: 4px; cursor: default;
+  transition: opacity .2s; flex-shrink: 0;
+}
+.tip-wrap:hover .tip-icon { opacity: 1; }
+.tip-box {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 200;
+  width: 260px;
+  background: var(--surface); border: 1px solid var(--border-mid);
+  border-radius: 8px; padding: 12px 14px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.6);
+  opacity: 0; pointer-events: none;
+  transition: opacity .15s, transform .15s;
+  transform: translateY(-4px);
+}
+.tip-wrap:hover .tip-box { opacity: 1; pointer-events: auto; transform: translateY(0); }
+.tip-wrap.tip-right .tip-box { left: auto; right: 0; }
+.tip-title {
+  font-size: 10px; font-weight: 700; color: var(--pos);
+  letter-spacing: .6px; margin-bottom: 6px; text-transform: uppercase;
+}
+.tip-desc {
+  font-size: 11px; color: var(--text-secondary);
+  line-height: 1.6; margin-bottom: 8px;
+}
+.tip-refs { display: flex; flex-wrap: wrap; gap: 6px; }
+.tip-ref {
+  font-size: 9px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+}
+.tip-ref.pos { background: var(--badge-pos-bg); color: var(--pos); }
+.tip-ref.neg { background: var(--badge-neg-bg); color: var(--neg); }
+.tip-ref.warn { background: var(--badge-warn-bg); color: var(--warn); }
+.tip-ref.info { background: var(--badge-info-bg); color: var(--info); }
+
 /* ── FINANCIAL TABLE ── */
 .table-scroll { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
 .fin-table { width: 100%; min-width: 540px; border-collapse: collapse; }
