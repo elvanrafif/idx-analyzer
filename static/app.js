@@ -587,7 +587,7 @@ function secTipTitle(key, labelHtml) {
       t.refs.map(function(r) { return '<span class="tip-ref ' + r.color + '">' + r.label + '</span>'; }).join('') +
     '</div>';
   }
-  return '<span class="tip-wrap tip-up">' +
+  return '<span class="tip-wrap">' +
     labelHtml + ' <span class="tip-icon">ⓘ</span>' +
     '<div class="tip-box">' +
       '<div class="tip-title">' + t.title + '</div>' +
