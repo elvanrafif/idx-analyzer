@@ -477,6 +477,7 @@ span.tip-wrap { display: inline-flex; align-items: center; }
 }
 .tip-wrap:hover .tip-box { opacity: 1; pointer-events: auto; transform: translateY(0); }
 .tip-wrap.tip-right .tip-box { left: auto; right: 0; }
+.tip-wrap.tip-up .tip-box { top: auto; bottom: calc(100% + 6px); }
 .tip-title {
   font-size: 10px; font-weight: 700; color: var(--pos);
   letter-spacing: .6px; margin-bottom: 6px; text-transform: uppercase;
