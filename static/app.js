@@ -396,6 +396,205 @@ function renderConsensus(d) {
   '</div>';
 }
 
+var TOOLTIPS = {
+  ema: {
+    title: 'EMA — Moving Averages',
+    desc: 'Exponential Moving Average memberi bobot lebih pada harga terbaru dibanding SMA biasa. Digunakan untuk menentukan arah tren, level support/resistance dinamis, dan sinyal entry/exit. EMA50 dan EMA200 paling diperhatikan oleh institusi besar.',
+    refs: [
+      { label: 'Harga > EMA200 = Uptrend', color: 'pos' },
+      { label: 'Harga < EMA200 = Downtrend', color: 'neg' },
+      { label: 'Golden Cross = Bullish kuat', color: 'pos' },
+      { label: 'Death Cross = Bearish kuat', color: 'neg' }
+    ]
+  },
+  macd: {
+    title: 'MACD (12,26,9)',
+    desc: 'Moving Average Convergence Divergence mengukur momentum dengan selisih EMA12 dan EMA26. Histogram positif berarti momentum bullish menguat; negatif berarti bearish. Sinyal terkuat saat histogram berbalik arah dari nilai ekstrem.',
+    refs: [
+      { label: 'Histogram > 0 & naik = Bullish', color: 'pos' },
+      { label: 'Histogram < 0 & turun = Bearish', color: 'neg' },
+      { label: 'MACD cross Signal dari bawah = Beli', color: 'info' }
+    ]
+  },
+  rsi: {
+    title: 'RSI (14) — Relative Strength Index',
+    desc: 'RSI mengukur kecepatan dan besar perubahan harga pada skala 0–100. Berguna untuk mengidentifikasi kondisi jenuh beli (overbought) dan jenuh jual (oversold). Divergensi RSI dengan harga sering menjadi sinyal pembalikan awal sebelum harga bergerak.',
+    refs: [
+      { label: '> 70 Overbought', color: 'warn' },
+      { label: '< 30 Oversold', color: 'info' },
+      { label: '40–60 Zona netral', color: 'pos' }
+    ]
+  },
+  stoch: {
+    title: 'Stochastic (14,3,3)',
+    desc: 'Stochastic Oscillator membandingkan harga penutupan dengan rentang harga dalam periode tertentu. %K adalah nilai utama, %D adalah sinyal (moving average dari %K). Sinyal terbaik: %K memotong %D dari bawah di zona oversold (sinyal beli), atau dari atas di zona overbought (sinyal jual).',
+    refs: [
+      { label: '> 80 Overbought', color: 'warn' },
+      { label: '< 20 Oversold', color: 'info' }
+    ]
+  },
+  bb: {
+    title: 'Bollinger Bands (20,2)',
+    desc: 'Bollinger Bands terdiri dari SMA20 sebagai garis tengah dan dua band berjarak 2 standar deviasi. Harga menyentuh upper band mengindikasikan potensi jenuh beli; lower band = jenuh jual. Bandwidth yang menyempit (squeeze) sering mendahului pergerakan harga yang besar.',
+    refs: [
+      { label: '%B > 1 = Di atas upper band', color: 'warn' },
+      { label: '%B < 0 = Di bawah lower band', color: 'info' },
+      { label: 'Squeeze aktif = Waspadai breakout', color: 'warn' }
+    ]
+  },
+  adx: {
+    title: 'ADX (14) — Average Directional Index',
+    desc: 'ADX mengukur kekuatan tren, bukan arahnya. ADX > 25 berarti tren cukup kuat untuk diikuti; < 20 berarti pasar sideways dan sinyal indikator tren lain kurang reliable. +DI vs -DI menunjukkan arah tren yang sedang dominan.',
+    refs: [
+      { label: '> 25 Tren kuat', color: 'pos' },
+      { label: '< 20 Sideways / lemah', color: 'neg' },
+      { label: '+DI > -DI = Bullish', color: 'pos' },
+      { label: '-DI > +DI = Bearish', color: 'neg' }
+    ]
+  },
+  avwap: {
+    title: 'AVWAP — Anchored VWAP',
+    desc: 'Anchored VWAP menghitung rata-rata harga tertimbang volume sejak titik acuan tertentu (biasanya awal tahun atau titik swing signifikan). Lebih akurat dari moving average karena mempertimbangkan volume. Digunakan institusi besar sebagai acuan harga wajar.',
+    refs: [
+      { label: 'Harga > AVWAP = Bullish bias', color: 'pos' },
+      { label: 'Harga < AVWAP = Bearish bias', color: 'neg' }
+    ]
+  },
+  rvol: {
+    title: 'Relative Volume',
+    desc: 'Relative Volume (RVOL) membandingkan volume hari ini dengan rata-rata 20 hari. RVOL > 2x menunjukkan aktivitas tidak biasa yang bisa menjadi sinyal breakout atau distribusi besar. RVOL rendah di tengah kenaikan harga mengindikasikan kenaikan kurang meyakinkan.',
+    refs: [
+      { label: '> 2x Volume sangat tinggi', color: 'warn' },
+      { label: '0.8–1.2x Normal', color: 'pos' },
+      { label: '< 0.7x Volume sepi', color: 'neg' }
+    ]
+  },
+  obv: {
+    title: 'OBV — On-Balance Volume',
+    desc: 'OBV mengakumulasi volume: ditambahkan saat harga naik, dikurangkan saat turun. Mengungkap apakah volume mengkonfirmasi pergerakan harga. OBV naik lebih dulu sebelum harga naik sering menjadi sinyal akumulasi diam-diam oleh smart money.',
+    refs: [
+      { label: 'OBV naik = Akumulasi', color: 'pos' },
+      { label: 'OBV turun = Distribusi', color: 'neg' },
+      { label: 'Divergensi OBV-harga = Sinyal pembalikan', color: 'warn' }
+    ]
+  },
+  atr: {
+    title: 'ATR (14) — Average True Range',
+    desc: 'ATR mengukur volatilitas rata-rata pergerakan harga dalam N periode — bukan arah, hanya besar pergerakan. Sangat berguna untuk menentukan ukuran stop loss yang realistis. Stop loss terlalu dekat pada saham dengan ATR tinggi sering terkena noise pasar.',
+    refs: [
+      { label: 'ATR % tinggi = Volatilitas tinggi', color: 'warn' },
+      { label: 'ATR % rendah = Pasar tenang', color: 'info' }
+    ]
+  },
+  mfi: {
+    title: 'MFI (14) — Money Flow Index',
+    desc: 'Money Flow Index adalah RSI berbasis volume — mengukur tekanan beli/jual dengan mempertimbangkan volume transaksi. Lebih akurat dari RSI murni untuk saham dengan volume tidak konsisten. Divergensi MFI dengan harga adalah sinyal pembalikan yang kuat.',
+    refs: [
+      { label: '> 80 Overbought', color: 'warn' },
+      { label: '< 20 Oversold', color: 'info' }
+    ]
+  },
+  willr: {
+    title: 'Williams %R (14)',
+    desc: 'Williams %R mengukur posisi harga penutupan relatif terhadap rentang harga tertinggi dalam periode tertentu. Nilai berkisar -100 hingga 0 (kebalikan dari Stochastic). Paling efektif digunakan sebagai konfirmasi sinyal reversal dari indikator lain.',
+    refs: [
+      { label: '> -20 Overbought', color: 'warn' },
+      { label: '< -80 Oversold', color: 'info' }
+    ]
+  },
+  technical_indicators: {
+    title: 'Technical Indicators',
+    desc: 'Kumpulan indikator teknikal yang menganalisis pergerakan harga dan volume historis untuk mengidentifikasi tren, momentum, volatilitas, dan potensi pembalikan. Digunakan untuk timing entry/exit dan konfirmasi sinyal trading.',
+    refs: []
+  },
+  piotroski: {
+    title: 'Piotroski F-Score',
+    desc: 'Sistem penilaian fundamental yang menggunakan 9 kriteria dari laporan keuangan: profitabilitas (ROA, OCF, akrual), leverage (debt ratio, current ratio, dilusi saham), dan efisiensi (gross margin, asset turnover). Skor 1 poin per kriteria yang terpenuhi.',
+    refs: [
+      { label: '7–9 Fundamental kuat', color: 'pos' },
+      { label: '3–6 Sedang', color: 'warn' },
+      { label: '0–2 Fundamental lemah', color: 'neg' }
+    ]
+  },
+  altman: {
+    title: 'Altman Z-Score',
+    desc: 'Formula prediksi kebangkrutan yang dikembangkan Edward Altman (1968). Mengkombinasikan 5 rasio keuangan: working capital, retained earnings, EBIT, market cap, dan revenue terhadap total aset. Efektif untuk perusahaan manufaktur; gunakan dengan hati-hati untuk sektor keuangan.',
+    refs: [
+      { label: '> 2.99 Safe zone', color: 'pos' },
+      { label: '1.81–2.99 Grey zone', color: 'warn' },
+      { label: '< 1.81 Distress zone', color: 'neg' }
+    ]
+  },
+  composite: {
+    title: 'Composite Score',
+    desc: 'Skor gabungan yang mengkombinasikan sinyal dari semua 12 indikator teknikal menjadi satu angka terbobot. Bobot masing-masing indikator dikalibrasi untuk konteks pasar IDX. Skor tinggi = mayoritas indikator menunjukkan sinyal bullish.',
+    refs: []
+  },
+  consensus: {
+    title: 'Technical Consensus',
+    desc: 'Ringkasan arah keseluruhan dari semua indikator teknikal — berapa yang memberikan sinyal bullish, bearish, dan netral. Berguna sebagai pandangan cepat tanpa harus membaca setiap indikator satu per satu.',
+    refs: []
+  },
+  key_levels: {
+    title: 'Key Levels',
+    desc: 'Level-level harga penting yang bertindak sebagai support (lantai harga) dan resistance (atap harga). Bersumber dari pivot point, high/low historis, dan level psikologis. Berguna untuk menentukan target profit dan penempatan stop loss.',
+    refs: []
+  },
+  outlook: {
+    title: 'Trading Outlook',
+    desc: 'Rekomendasi trading berdasarkan analisis gabungan indikator teknikal, level kunci, dan kondisi pasar. Mencakup saran posisi (beli/jual/tunggu), level entry yang disarankan, target profit, dan stop loss berbasis ATR.',
+    refs: []
+  },
+  stats: {
+    title: 'Key Stats',
+    desc: 'Data fundamental utama perusahaan: valuasi (P/E trailing & forward, P/BV, PEG), profitabilitas (ROE, ROA, net margin, operating margin), pertumbuhan revenue & earnings YoY, dan kesehatan keuangan (current ratio, debt-to-equity, free cash flow).',
+    refs: []
+  },
+  scoring: {
+    title: 'Scoring & Targets',
+    desc: 'Skor-skor kuantitatif dari model analisis: Piotroski F-Score (kekuatan fundamental 0–9), Altman Z-Score (risiko kebangkrutan), dividend yield, EV/EBITDA (valuasi relatif terhadap earning), dan estimasi upside dari target harga konsensus analis.',
+    refs: []
+  }
+};
+
+function tipTitle(key, displayHtml, alignRight) {
+  var t = TOOLTIPS[key];
+  if (!t) return '<div class="tech-card-title">' + displayHtml + '</div>';
+  var refsHtml = '';
+  if (t.refs && t.refs.length) {
+    refsHtml = '<div class="tip-refs">' +
+      t.refs.map(function(r) { return '<span class="tip-ref ' + r.color + '">' + r.label + '</span>'; }).join('') +
+    '</div>';
+  }
+  return '<div class="tip-wrap' + (alignRight ? ' tip-right' : '') + '">' +
+    '<div class="tech-card-title">' + displayHtml + ' <span class="tip-icon">ⓘ</span></div>' +
+    '<div class="tip-box">' +
+      '<div class="tip-title">' + t.title + '</div>' +
+      '<div class="tip-desc">' + t.desc + '</div>' +
+      refsHtml +
+    '</div>' +
+  '</div>';
+}
+
+function secTipTitle(key, labelHtml) {
+  var t = TOOLTIPS[key];
+  if (!t) return labelHtml;
+  var refsHtml = '';
+  if (t.refs && t.refs.length) {
+    refsHtml = '<div class="tip-refs" style="margin-top:6px;">' +
+      t.refs.map(function(r) { return '<span class="tip-ref ' + r.color + '">' + r.label + '</span>'; }).join('') +
+    '</div>';
+  }
+  return '<span class="tip-wrap">' +
+    labelHtml + ' <span class="tip-icon">ⓘ</span>' +
+    '<div class="tip-box">' +
+      '<div class="tip-title">' + t.title + '</div>' +
+      '<div class="tip-desc">' + t.desc + '</div>' +
+      refsHtml +
+    '</div>' +
+  '</span>';
+}
+
 function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, willr) {
   if (!mb && !rsi && !sma && !rvol && !adx && !avwap && !stoch && !obv && !atr && !mfi && !willr) return '<p class="no-data">Data historis tidak cukup.</p>';
   var cards = [];
