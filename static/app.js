@@ -269,12 +269,16 @@ function renderMetrics(d) {
     ['Avg Volume 10d', fnum(i.averageVolume10days)]
   ];
 
+  var evLabel = (d.ev_ebitda && d.ev_ebitda.value != null)
+    ? d.ev_ebitda.value + 'x <span style="opacity:.6;font-size:10px;">' + d.ev_ebitda.signal + '</span>'
+    : '<span class="na">\u2014</span>';
   var right = [
     ['P/E Ratio', fval(i.trailingPE)],
     ['Debt/Equity', fval(i.debtToEquity)],
     ['ROE', fval(i.returnOnEquity)],
     ['Current Ratio', fval(i.currentRatio)],
     ['Div. Yield', i.dividendYield != null ? (i.dividendYield * 100).toFixed(2) + '%' : '<span class="na">\u2014</span>'],
+    ['EV/EBITDA', evLabel],
     ['Target Upside', upside != null ? '<span class="' + (upside > 0 ? 'pos' : 'neg') + '">' + (upside > 0 ? '+' : '') + upside + '%</span>' : '<span class="na">\u2014</span>']
   ];
 
@@ -290,7 +294,7 @@ function renderMetrics(d) {
 
 function renderComposite(c) {
   if (!c) return '<p class="no-data">Data composite tidak tersedia.</p>';
-  var weights = { Fundamental: '30%', Technical: '25%', Risk: '20%', Momentum: '15%', Sentiment: '10%' };
+  var weights = { Fundamental: '28%', Technical: '32%', Risk: '20%', Momentum: '13%', Sentiment: '7%' };
   return '<div class="composite-card">' +
     '<div>' +
       '<div class="composite-score-num ' + (c.final >= 70 ? 'pos' : c.final < 35 ? 'neg' : '') + '">' + c.final + '</div>' +
@@ -345,6 +349,16 @@ function renderConsensus(d) {
     var rvcls = rvv === 1 ? 'sig-bullish' : rvv === -1 ? 'sig-bearish' : 'sig-netral';
     votes.push({ name: 'Rel. Volume', label: d.rvol.signal, cls: rvcls, vote: rvv, detail: d.rvol.rvol + 'x avg' });
   }
+  if (d.mfi) {
+    var mficv = d.mfi.signal === 'OVERSOLD' ? 1 : d.mfi.signal === 'OVERBOUGHT' ? -1 : 0;
+    var mficls = d.mfi.signal === 'OVERSOLD' ? 'sig-oversold' : d.mfi.signal === 'OVERBOUGHT' ? 'sig-overbought' : 'sig-netral';
+    votes.push({ name: 'MFI (14)', label: d.mfi.signal, cls: mficls, vote: mficv, detail: 'MFI ' + d.mfi.value });
+  }
+  if (d.williams_r) {
+    var wrcv = d.williams_r.signal === 'OVERSOLD' ? 1 : d.williams_r.signal === 'OVERBOUGHT' ? -1 : 0;
+    var wrcls = d.williams_r.signal === 'OVERSOLD' ? 'sig-oversold' : d.williams_r.signal === 'OVERBOUGHT' ? 'sig-overbought' : 'sig-netral';
+    votes.push({ name: 'Williams %R (14)', label: d.williams_r.signal, cls: wrcls, vote: wrcv, detail: 'W%R ' + d.williams_r.value });
+  }
   if (votes.length === 0) return '<p class="no-data">Data tidak cukup untuk konsensus.</p>';
 
   var buyCount = votes.filter(function(x) { return x.vote === 1; }).length;
@@ -382,8 +396,8 @@ function renderConsensus(d) {
   '</div>';
 }
 
-function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
-  if (!mb && !rsi && !sma && !rvol && !adx && !avwap && !stoch && !obv) return '<p class="no-data">Data historis tidak cukup.</p>';
+function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, willr) {
+  if (!mb && !rsi && !sma && !rvol && !adx && !avwap && !stoch && !obv && !atr && !mfi && !willr) return '<p class="no-data">Data historis tidak cukup.</p>';
   var cards = [];
   var sc = { bullish:'sig-bullish', bearish:'sig-bearish', overbought:'sig-overbought', oversold:'sig-oversold', netral:'sig-netral', neutral:'sig-netral', accumulation:'sig-bullish', distribution:'sig-bearish', 'bullish divergence':'sig-bullish', 'bearish divergence':'sig-bearish' };
 
@@ -533,6 +547,59 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv) {
       '<div class="tech-row"><span class="tech-row-label">OBV</span><span class="' + obvTrCls + '">' + obv.value + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Tren OBV</span><span class="' + obvTrCls + '">' + obv.trend + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Tren EMA10</span><span class="' + (obv.ema_trend === 'UP' ? 'pos' : 'neg') + '">' + obv.ema_trend + '</span></div>' +
+    '</div>');
+  }
+
+  // 10. ATR
+  if (atr) {
+    var atrColor = atr.signal === 'HIGH' ? 'var(--warn)' : atr.signal === 'LOW' ? 'var(--info)' : 'var(--pos)';
+    var atrBadge = atr.signal === 'HIGH' ? 'br' : atr.signal === 'LOW' ? 'bb' : 'by';
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">ATR (14) <span style="font-size:9px;opacity:.6;">Volatility</span></div>' +
+      '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
+        '<span class="badge ' + atrBadge + '">' + atr.signal + '</span>' +
+      '</div>' +
+      '<div class="tech-row"><span class="tech-row-label">ATR Value</span><span style="color:' + atrColor + ';">Rp ' + (atr.value != null ? atr.value.toLocaleString('id') : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">ATR %</span><span style="color:' + atrColor + ';">' + (atr.pct != null ? atr.pct + '%' : '—') + '</span></div>' +
+    '</div>');
+  }
+
+  // 11. MFI
+  if (mfi) {
+    var mfiColor = mfi.value > 80 ? 'var(--warn)' : mfi.value < 20 ? 'var(--info)' : 'var(--pos)';
+    var mfiSigCls = mfi.signal === 'OVERBOUGHT' ? 'sig-overbought' : mfi.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">MFI (14) <span style="font-size:9px;opacity:.6;">Money Flow Index</span></div>' +
+      '<div class="tech-sig ' + mfiSigCls + '">' + mfi.signal + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;color:' + mfiColor + ';margin:6px 0;">' + mfi.value + '</div>' +
+      '<div style="margin:10px 0;">' +
+        '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.04);">' +
+          '<div style="height:100%;border-radius:4px;width:' + mfi.value + '%;background:' + mfiColor + ';transition:width .5s;"></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--text-secondary);margin-top:3px;">' +
+          '<span style="color:var(--info);">0</span><span>20</span><span>50</span><span>80</span><span style="color:var(--warn);">100</span>' +
+        '</div>' +
+      '</div>' +
+    '</div>');
+  }
+
+  // 12. Williams %R
+  if (willr) {
+    var wrColor = willr.value > -20 ? 'var(--warn)' : willr.value < -80 ? 'var(--info)' : 'var(--pos)';
+    var wrSigCls = willr.signal === 'OVERBOUGHT' ? 'sig-overbought' : willr.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
+    var wrBarW = Math.abs(willr.value);
+    cards.push('<div class="tech-card">' +
+      '<div class="tech-card-title">Williams %R (14)</div>' +
+      '<div class="tech-sig ' + wrSigCls + '">' + willr.signal + '</div>' +
+      '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;color:' + wrColor + ';margin:6px 0;">' + willr.value + '</div>' +
+      '<div style="margin:10px 0;">' +
+        '<div style="height:8px;border-radius:4px;overflow:hidden;background:rgba(255,255,255,0.04);">' +
+          '<div style="height:100%;border-radius:4px;width:' + wrBarW + '%;background:' + wrColor + ';transition:width .5s;"></div>' +
+        '</div>' +
+        '<div style="display:flex;justify-content:space-between;font-family:\'JetBrains Mono\',monospace;font-size:8px;color:var(--text-secondary);margin-top:3px;">' +
+          '<span style="color:var(--warn);">-100</span><span>-80</span><span>-50</span><span>-20</span><span style="color:var(--info);">0</span>' +
+        '</div>' +
+      '</div>' +
     '</div>');
   }
 
@@ -830,6 +897,14 @@ function renderSignalStrip(d) {
     var obvv = d.obv.signal === 'ACCUMULATION' || d.obv.signal === 'BULLISH DIVERGENCE' ? 1 : d.obv.signal === 'DISTRIBUTION' || d.obv.signal === 'BEARISH DIVERGENCE' ? -1 : 0;
     votes.push({ name: 'OBV', v: obvv, label: d.obv.trend });
   }
+  if (d.mfi) {
+    var mfiv = d.mfi.signal === 'OVERSOLD' ? 1 : d.mfi.signal === 'OVERBOUGHT' ? -1 : 0;
+    votes.push({ name: 'MFI', v: mfiv, label: String(d.mfi.value) });
+  }
+  if (d.williams_r) {
+    var wrv = d.williams_r.signal === 'OVERSOLD' ? 1 : d.williams_r.signal === 'OVERBOUGHT' ? -1 : 0;
+    votes.push({ name: 'W%R', v: wrv, label: String(d.williams_r.value) });
+  }
 
   var buyCount  = votes.filter(function(x) { return x.v === 1; }).length;
   var sellCount = votes.filter(function(x) { return x.v === -1; }).length;
@@ -891,7 +966,7 @@ function render(d) {
   html += sec('', 'TRADING OUTLOOK', renderOutlook(d.outlook), true);
   html += '</div>';
 
-  html += sec('', 'TECHNICAL INDICATORS', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv), true);
+  html += sec('', 'TECHNICAL INDICATORS', renderTechnical(d.macd_bb, d.rsi, d.sma, d.rvol, d.adx, d.avwap, d.stochastic, d.obv, d.atr, d.mfi, d.williams_r), true);
 
   html += '<div class="layout-pair">';
   html += sec('', 'PIOTROSKI F-SCORE', renderPiotroski(d.piotroski), true);
