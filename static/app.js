@@ -606,7 +606,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50&gt;EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50&lt;EMA200)' : 'N/A';
     var fmtEma = function(v) { return v != null ? 'Rp ' + v.toLocaleString('id') : '<span class="na">—</span>'; };
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">EMA — Moving Averages</div>' +
+      tipTitle('ema', 'EMA — Moving Averages') +
       '<div class="tech-sig ' + gcls + '" style="margin-bottom:10px;">' + glabel + '</div>' +
       '<div class="tech-row"><span class="tech-row-label">Price</span><span>' + (sma.price != null ? 'Rp ' + sma.price.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">EMA 9 <span style="font-size:9px;opacity:.6;">(short)</span></span><span class="' + (sma.price > sma.ema9 ? 'pos' : 'neg') + '">' + fmtEma(sma.ema9) + '</span></div>' +
@@ -622,7 +622,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var ms = (m.signal_label || '').toLowerCase();
     var cross = m.cross ? '<div class="tech-sig ' + (m.cross.includes('GOLDEN') ? 'sig-golden' : 'sig-death') + '" style="margin-top:6px;font-size:10px;">' + m.cross + '</div>' : '';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">MACD (12,26,9)</div>' +
+      tipTitle('macd', 'MACD (12,26,9)') +
       '<div class="tech-sig ' + (sc[ms] || 'sig-netral') + '">' + m.signal_label + '</div>' + cross +
       '<div class="tech-row"><span class="tech-row-label">MACD Line</span><span>' + m.line + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Signal Line</span><span>' + m.signal + '</span></div>' +
@@ -635,7 +635,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var rsiColor = rsi.value > 70 ? 'var(--warn)' : rsi.value < 30 ? 'var(--info)' : 'var(--pos)';
     var rsiSigCls = rsi.signal === 'OVERBOUGHT' ? 'sig-overbought' : rsi.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">RSI (14)</div>' +
+      tipTitle('rsi', 'RSI (14)', true) +
       '<div class="tech-sig ' + rsiSigCls + '">' + rsi.signal + '</div>' +
       '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;color:' + rsiColor + ';margin:6px 0;">' + rsi.value + '</div>' +
       '<div style="margin:10px 0;">' +
@@ -655,7 +655,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var stSigCls = stoch.signal === 'OVERBOUGHT' ? 'sig-overbought' : stoch.signal === 'OVERSOLD' ? 'sig-oversold' : stoch.signal === 'BULLISH' ? 'sig-bullish' : stoch.signal === 'BEARISH' ? 'sig-bearish' : 'sig-netral';
     var stCross = stoch.cross ? '<div class="tech-sig ' + (stoch.cross.includes('GOLDEN') ? 'sig-golden' : 'sig-death') + '" style="margin-top:6px;font-size:10px;">' + stoch.cross + '</div>' : '';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Stochastic (14,3,3)</div>' +
+      tipTitle('stoch', 'Stochastic (14,3,3)') +
       '<div class="tech-sig ' + stSigCls + '">' + stoch.signal + '</div>' + stCross +
       '<div style="display:flex;gap:16px;margin:8px 0;">' +
         '<div><div style="font-family:\'JetBrains Mono\',monospace;font-size:24px;font-weight:600;color:' + stColor + ';">' + stoch.k + '</div><div style="font-size:9px;color:var(--text-secondary);">%K</div></div>' +
@@ -674,7 +674,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
   if (mb) {
     var b2 = mb.bb, bs2 = (b2.signal || '').toLowerCase();
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Bollinger Bands (20,2)</div>' +
+      tipTitle('bb', 'Bollinger Bands (20,2)') +
       '<div class="tech-sig ' + (sc[bs2] || 'sig-netral') + '">' + b2.signal + '</div>' +
       '<div class="tech-row"><span class="tech-row-label">Upper Band</span><span class="neg">' + (b2.upper != null ? 'Rp ' + b2.upper.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>' + (b2.mid != null ? 'Rp ' + b2.mid.toLocaleString('id') : '—') + '</span></div>' +
@@ -691,7 +691,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var adxDirCls = adx.direction === 'BULLISH' ? 'pos' : 'neg';
     var adxBarW = Math.min(100, adx.adx / 50 * 100);
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">ADX (14) — Trend Strength</div>' +
+      tipTitle('adx', 'ADX (14) — Trend Strength', true) +
       '<div class="tech-sig ' + adxStrCls + '">' + adx.strength + '</div>' +
       '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;line-height:1;margin:6px 0;" class="' + adxStrCls.replace('sig-', '') + '">' + adx.adx + '</div>' +
       '<div style="height:6px;border-radius:3px;overflow:hidden;background:rgba(255,255,255,0.04);margin:8px 0;">' +
@@ -708,7 +708,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var avwapSigCls = avwap.signal === 'BULLISH' ? 'sig-bullish' : 'sig-bearish';
     var avwapDiff = avwap.pct_diff != null ? (avwap.pct_diff > 0 ? '+' + avwap.pct_diff + '%' : avwap.pct_diff + '%') : '—';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">AVWAP <span style="font-size:9px;opacity:.6;">(Anchored VWAP)</span></div>' +
+      tipTitle('avwap', 'AVWAP <span style="font-size:9px;opacity:.6;">(Anchored VWAP)</span>') +
       '<div class="tech-sig ' + avwapSigCls + '">' + avwap.signal + '</div>' +
       '<div class="tech-row"><span class="tech-row-label">AVWAP</span><span>' + (avwap.value != null ? 'Rp ' + avwap.value.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Harga vs AVWAP</span><span class="' + (avwap.pct_diff != null && avwap.pct_diff > 0 ? 'pos' : 'neg') + '">' + avwapDiff + '</span></div>' +
@@ -720,7 +720,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var rvsc = rvol.signal === 'VERY HIGH' ? 'bg' : rvol.signal === 'HIGH' ? 'by' : rvol.signal === 'NORMAL' ? 'bb' : 'br';
     var barW = Math.min(100, rvol.rvol / 4 * 100);
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Relative Volume</div>' +
+      tipTitle('rvol', 'Relative Volume') +
       '<div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">' +
         '<div style="font-family:\'JetBrains Mono\',monospace;font-size:32px;font-weight:600;line-height:1;" class="' + (rvol.rvol >= 2 ? 'pos' : rvol.rvol < 0.7 ? 'neg' : '') + '">' + rvol.rvol + 'x</div>' +
         '<span class="badge ' + rvsc + '">' + rvol.signal + '</span>' +
@@ -739,7 +739,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var obvTrCls = obv.trend === 'UP' ? 'pos' : 'neg';
     var obvDivBadge = obv.divergence ? '<span class="badge by" style="font-size:9px;margin-left:6px;">DIVERGENCE</span>' : '';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">OBV <span style="font-size:9px;opacity:.6;">(On-Balance Volume)</span></div>' +
+      tipTitle('obv', 'OBV <span style="font-size:9px;opacity:.6;">(On-Balance Volume)</span>', true) +
       '<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">' +
         '<div class="tech-sig ' + obvSigCls + '" style="margin-bottom:0;">' + obv.signal + '</div>' + obvDivBadge +
       '</div>' +
@@ -754,7 +754,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var atrColor = atr.signal === 'HIGH' ? 'var(--warn)' : atr.signal === 'LOW' ? 'var(--info)' : 'var(--pos)';
     var atrBadge = atr.signal === 'HIGH' ? 'br' : atr.signal === 'LOW' ? 'bb' : 'by';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">ATR (14) <span style="font-size:9px;opacity:.6;">Volatility</span></div>' +
+      tipTitle('atr', 'ATR (14) <span style="font-size:9px;opacity:.6;">Volatility</span>') +
       '<div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">' +
         '<span class="badge ' + atrBadge + '">' + atr.signal + '</span>' +
       '</div>' +
@@ -768,7 +768,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var mfiColor = mfi.value > 80 ? 'var(--warn)' : mfi.value < 20 ? 'var(--info)' : 'var(--pos)';
     var mfiSigCls = mfi.signal === 'OVERBOUGHT' ? 'sig-overbought' : mfi.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">MFI (14) <span style="font-size:9px;opacity:.6;">Money Flow Index</span></div>' +
+      tipTitle('mfi', 'MFI (14) <span style="font-size:9px;opacity:.6;">Money Flow Index</span>') +
       '<div class="tech-sig ' + mfiSigCls + '">' + mfi.signal + '</div>' +
       '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;color:' + mfiColor + ';margin:6px 0;">' + mfi.value + '</div>' +
       '<div style="margin:10px 0;">' +
@@ -788,7 +788,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
     var wrSigCls = willr.signal === 'OVERBOUGHT' ? 'sig-overbought' : willr.signal === 'OVERSOLD' ? 'sig-oversold' : 'sig-netral';
     var wrBarW = Math.abs(willr.value);
     cards.push('<div class="tech-card">' +
-      '<div class="tech-card-title">Williams %R (14)</div>' +
+      tipTitle('willr', 'Williams %R (14)', true) +
       '<div class="tech-sig ' + wrSigCls + '">' + willr.signal + '</div>' +
       '<div style="font-family:\'JetBrains Mono\',monospace;font-size:28px;font-weight:600;color:' + wrColor + ';margin:6px 0;">' + willr.value + '</div>' +
       '<div style="margin:10px 0;">' +
