@@ -12,9 +12,12 @@ def fetch_ticker_data(ticker):
         k: (None if isinstance(v, float) and pd.isna(v) else v)
         for k, v in info.items()
     }
-    hist_6m = stock.history(period='6mo')
-    hist_1y = stock.history(period='1y')
-    hist_3m = stock.history(period='3mo')
+    # One 2y pull, sliced locally: ADX/EMA200 need the long warm-up, and
+    # three separate history() calls were three round-trips for the same bars.
+    hist_2y = stock.history(period='2y')
+    hist_1y = hist_2y.tail(252)
+    hist_6m = hist_2y.tail(126)
+    hist_3m = hist_2y.tail(63)
     balance_sheet = stock.balance_sheet
     financials = stock.financials
     cashflow = stock.cashflow
@@ -25,6 +28,7 @@ def fetch_ticker_data(ticker):
         'hist_6m': hist_6m,
         'hist_1y': hist_1y,
         'hist_3m': hist_3m,
+        'hist_2y': hist_2y,
         'balance_sheet': balance_sheet,
         'financials': financials,
         'cashflow': cashflow,
@@ -48,9 +52,10 @@ def df_to_dict(df):
                 try:
                     v = df.loc[idx, col]
                     row[cols[j]] = None if pd.isna(v) else float(v)
-                except:
+                except Exception:
                     row[cols[j]] = None
             data[str(idx)] = row
         return {"columns": cols, "data": data}
-    except:
+    except Exception as e:
+        print(f"df_to_dict error: {e}")
         return None

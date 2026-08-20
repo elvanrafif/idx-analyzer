@@ -69,7 +69,9 @@ const R = {
   roa: v => !v ? '' : (p => p >= 10 ? '\uD83D\uDFE2 Excellent' : p >= 7 ? '\uD83D\uDFE1 Bagus' : p >= 5 ? '\uD83D\uDFE0 Sedang' : p > 0 ? '\uD83D\uDD34 Rendah' : '\uD83D\uDD34 Rugi')(v * 100),
   npm: v => !v ? '' : (p => p >= 20 ? '\uD83D\uDFE2 Tinggi' : p >= 10 ? '\uD83D\uDFE1 Sedang' : p >= 5 ? '\uD83D\uDFE0 Tipis' : p > 0 ? '\uD83D\uDD34 Sangat Tipis' : '\uD83D\uDD34 Rugi')(v * 100),
   cr:  v => !v ? '' : v >= 2 ? '\uD83D\uDFE2 Sangat Sehat' : v >= 1.5 ? '\uD83D\uDFE1 Sehat' : v >= 1 ? '\uD83D\uDFE0 Cukup' : '\uD83D\uDD34 Rawan',
-  dy:  v => !v ? '' : (p => p >= 5 ? '\uD83D\uDFE2 Tinggi' : p >= 3 ? '\uD83D\uDFE1 Menarik' : p >= 1 ? '\uD83D\uDFE0 Rendah' : '\uD83D\uDD34 Sangat Rendah')(v * 100),
+  // takes a PERCENT (backend-normalised). info.dividendYield is already a
+  // percent in yfinance >= 0.2.52, so multiplying by 100 printed 565%.
+  dy:  p => !p ? '' : p >= 5 ? '\uD83D\uDFE2 Tinggi' : p >= 3 ? '\uD83D\uDFE1 Menarik' : p >= 1 ? '\uD83D\uDFE0 Rendah' : '\uD83D\uDD34 Sangat Rendah',
 };
 
 function badge(txt) {
@@ -278,7 +280,7 @@ function renderMetrics(d) {
     ['Debt/Equity', fval(i.debtToEquity)],
     ['ROE', fval(i.returnOnEquity)],
     ['Current Ratio', fval(i.currentRatio)],
-    ['Div. Yield', i.dividendYield != null ? (i.dividendYield * 100).toFixed(2) + '%' : '<span class="na">\u2014</span>'],
+    ['Div. Yield', d.div_yield && d.div_yield.yield_pct ? d.div_yield.yield_pct.toFixed(2) + '%' : '<span class="na">\u2014</span>'],
     ['EV/EBITDA', evLabel],
     ['Target Upside', upside != null ? '<span class="' + (upside > 0 ? 'pos' : 'neg') + '">' + (upside > 0 ? '+' : '') + upside + '%</span>' : '<span class="na">\u2014</span>']
   ];
@@ -307,7 +309,7 @@ function renderComposite(c) {
       '<div style="font-size:10px;color:var(--text-secondary);margin-top:6px;">Skor Keputusan Komprehensif</div>' +
     '</div>' +
     '<div class="composite-bars">' +
-      Object.entries(c.components).map(function(e) {
+      Object.entries(c.components).filter(function(e) { return e[1] != null; }).map(function(e) {
         return '<div class="cbar-row">' +
           '<span class="cbar-label">' + e[0] + ' <span style="opacity:.5">' + (weights[e[0]] || '') + '</span></span>' +
           '<div class="cbar-track"><div class="cbar-fill" style="width:' + e[1] + '%"></div></div>' +
@@ -336,20 +338,23 @@ function renderConsensus(d) {
     var rcls = d.rsi.signal === 'OVERSOLD' ? 'sig-oversold' : d.rsi.signal === 'OVERBOUGHT' ? 'sig-overbought' : 'sig-netral';
     votes.push({ name: 'RSI (14)', label: d.rsi.signal, cls: rcls, vote: rv, detail: 'RSI ' + d.rsi.value });
   }
+  // Backend emits Indonesian labels (KUAT/AMAN/TINGGI). Matching English
+  // strings here made these three votes permanently neutral.
   if (d.piotroski) {
-    var pv = d.piotroski.rating === 'STRONG' ? 1 : d.piotroski.rating === 'WEAK' ? -1 : 0;
-    var pcls = d.piotroski.rating === 'STRONG' ? 'sig-bullish' : d.piotroski.rating === 'WEAK' ? 'sig-bearish' : 'sig-netral';
+    var pv = d.piotroski.rating === 'KUAT' ? 1 : d.piotroski.rating === 'LEMAH' ? -1 : 0;
+    var pcls = pv === 1 ? 'sig-bullish' : pv === -1 ? 'sig-bearish' : 'sig-netral';
     votes.push({ name: 'Piotroski F-Score', label: d.piotroski.rating, cls: pcls, vote: pv, detail: d.piotroski.score + '/9 pts' });
   }
   if (d.altman) {
-    var av = d.altman.zone === 'SAFE' ? 1 : d.altman.zone === 'DANGER' ? -1 : 0;
-    var acls = d.altman.zone === 'SAFE' ? 'sig-bullish' : d.altman.zone === 'DANGER' ? 'sig-bearish' : 'sig-netral';
+    var av = d.altman.zone === 'AMAN' ? 1 : d.altman.zone === 'BAHAYA' ? -1 : 0;
+    var acls = av === 1 ? 'sig-bullish' : av === -1 ? 'sig-bearish' : 'sig-netral';
     votes.push({ name: 'Altman Z-Score', label: d.altman.zone, cls: acls, vote: av, detail: 'Z ' + d.altman.z_score });
   }
   if (d.rvol) {
-    var rvv = (d.rvol.signal === 'VERY HIGH' || d.rvol.signal === 'HIGH') ? 1 : d.rvol.signal === 'LOW' ? -1 : 0;
+    var rvv = (d.rvol.signal === 'SANGAT TINGGI' || d.rvol.signal === 'TINGGI') ? 1 : d.rvol.signal === 'RENDAH' ? -1 : 0;
     var rvcls = rvv === 1 ? 'sig-bullish' : rvv === -1 ? 'sig-bearish' : 'sig-netral';
-    votes.push({ name: 'Rel. Volume', label: d.rvol.signal, cls: rvcls, vote: rvv, detail: d.rvol.rvol + 'x avg' });
+    var rvdetail = d.rvol.rvol + 'x avg' + (d.rvol.partial ? ' (proyeksi, sesi ' + d.rvol.session_pct + '%)' : '');
+    votes.push({ name: 'Rel. Volume', label: d.rvol.signal, cls: rvcls, vote: rvv, detail: rvdetail });
   }
   if (d.mfi) {
     var mficv = d.mfi.signal === 'OVERSOLD' ? 1 : d.mfi.signal === 'OVERBOUGHT' ? -1 : 0;
@@ -605,7 +610,12 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
   // 1. EMA
   if (sma) {
     var gcls = sma.golden_cross === true ? 'sig-golden' : sma.golden_cross === false ? 'sig-death' : 'sig-netral';
-    var glabel = sma.golden_cross === true ? 'Golden Cross (EMA50&gt;EMA200)' : sma.golden_cross === false ? 'Death Cross (EMA50&lt;EMA200)' : 'N/A';
+    // golden_cross is a STATE (EMA50 above/below EMA200); cross_event is the
+    // actual crossover, and only that deserves the "Golden Cross" wording.
+    var glabel = sma.cross_event === 'GOLDEN CROSS' ? 'Golden Cross baru (EMA50 x EMA200)'
+      : sma.cross_event === 'DEATH CROSS' ? 'Death Cross baru (EMA50 x EMA200)'
+      : sma.golden_cross === true ? 'Bullish (EMA50&gt;EMA200)'
+      : sma.golden_cross === false ? 'Bearish (EMA50&lt;EMA200)' : 'N/A';
     var fmtEma = function(v) { return v != null ? 'Rp ' + v.toLocaleString('id') : '<span class="na">—</span>'; };
     cards.push('<div class="tech-card">' +
       tipTitle('ema', 'EMA — Moving Averages') +
@@ -682,7 +692,7 @@ function renderTechnical(mb, rsi, sma, rvol, adx, avwap, stoch, obv, atr, mfi, w
       '<div class="tech-row"><span class="tech-row-label">Middle (SMA20)</span><span>' + (b2.mid != null ? 'Rp ' + b2.mid.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">Lower Band</span><span class="pos">' + (b2.lower != null ? 'Rp ' + b2.lower.toLocaleString('id') : '—') + '</span></div>' +
       '<div class="tech-row"><span class="tech-row-label">%B Position</span><span>' + (b2.pct_b != null ? (b2.pct_b * 100).toFixed(0) + '%' : '—') + '</span></div>' +
-      '<div class="tech-row"><span class="tech-row-label">Bandwidth</span><span>' + (b2.bandwidth != null ? b2.bandwidth : '—') + '</span></div>' +
+      '<div class="tech-row"><span class="tech-row-label">Bandwidth</span><span>' + (b2.bandwidth != null ? (b2.bandwidth * 100).toFixed(1) + '%' + (b2.bw_rank != null ? ' (pct-' + Math.round(b2.bw_rank * 100) + ')' : '') : '—') + '</span></div>' +
       (b2.squeeze ? '<div class="tech-row"><span class="tech-row-label">Squeeze</span><span class="badge bb">ACTIVE</span></div>' : '') +
     '</div>');
   }
@@ -837,8 +847,11 @@ function renderFundamentalTabs(d) {
     ['Operating CF',    i.operatingCashflow, '']
   ];
 
+  var dyPct = d.div_yield ? d.div_yield.yield_pct : null;
+  var dyFwd = d.div_yield ? d.div_yield.forward_pct : null;
   var divRows = [
-    ['Dividend Yield',   i.dividendYield,  R.dy(i.dividendYield)],
+    ['Dividend Yield (TTM)', dyPct, R.dy(dyPct)],
+    ['Dividend Yield (fwd)', dyFwd, ''],
     ['Dividend Rate',    i.dividendRate,    ''],
     ['Payout Ratio',     i.payoutRatio,     ''],
     ['Ex-Dividend Date', i.exDividendDate,  ''],
@@ -1072,7 +1085,7 @@ function renderSignalStrip(d) {
   }
   if (d.sma) {
     var sv = d.sma.golden_cross === true ? 1 : d.sma.golden_cross === false ? -1 : 0;
-    votes.push({ name: 'EMA', v: sv, label: d.sma.golden_cross === true ? 'GOLDEN' : d.sma.golden_cross === false ? 'DEATH' : 'NEUTRAL' });
+    votes.push({ name: 'EMA', v: sv, label: d.sma.golden_cross === true ? 'BULLISH' : d.sma.golden_cross === false ? 'BEARISH' : 'NEUTRAL' });
   }
   if (d.adx) {
     var adxv = (d.adx.direction === 'BULLISH' && d.adx.strength !== 'WEAK') ? 1 : (d.adx.direction === 'BEARISH' && d.adx.strength !== 'WEAK') ? -1 : 0;

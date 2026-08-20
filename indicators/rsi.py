@@ -20,5 +20,6 @@ def calculate_rsi(hist_3m, period=14):
         val = round(100 - (100 / (1 + rs)), 1)
         signal = 'OVERBOUGHT' if val > 70 else 'OVERSOLD' if val < 30 else 'NEUTRAL'
         return {'value': val, 'signal': signal}
-    except:
+    except Exception as e:
+        print(f"RSI error: {e}")
         return None

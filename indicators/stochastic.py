@@ -45,5 +45,6 @@ def calculate_stochastic(hist, k_period=14, d_period=3):
             'signal': signal,
             'cross': cross,
         }
-    except:
+    except Exception as e:
+        print(f"Stochastic error: {e}")
         return None

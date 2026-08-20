@@ -58,15 +58,15 @@ def analyze():
 
         sharpe = calculate_sharpe(data['hist_1y'])
         sortino = calculate_sortino(data['hist_1y'])
-        piotroski = calculate_piotroski(bs, fs, cf)
-        altman = calculate_altman_z(bs, fs)
+        piotroski = calculate_piotroski(bs, fs, cf, info)
+        altman = calculate_altman_z(bs, fs, info)
         macd_bb = calculate_macd_bb(data['hist_6m'])
         rsi = calculate_rsi(data['hist_6m'])
-        sma = calculate_sma(data['hist_1y'])
+        sma = calculate_sma(data['hist_2y'])
         rvol = calculate_rvol(data['hist_3m'])
         fcf_yield = calculate_fcf_yield(info)
 
-        adx = calculate_adx(data['hist_3m'])
+        adx = calculate_adx(data['hist_1y'])   # ADX needs ~150 bars to converge
         avwap = calculate_avwap(data['hist_3m'])
         stochastic = calculate_stochastic(data['hist_3m'])
         obv = calculate_obv(data['hist_1y'])

@@ -1,22 +1,43 @@
 import pandas as pd
 
+from .fundamental import is_financial
 
-def _get_value(df, col_idx, *keys):
+
+def get_line_item(df, col_idx, *keys):
+    """Look up a line item. Exact label wins over substring, so 'net income'
+    picks 'Net Income' rather than whichever 'Net Income ...' variant Yahoo
+    happens to list first."""
     if df is None or col_idx >= len(df.columns):
         return None
     col = df.columns[col_idx]
+    labels = {str(idx).lower(): idx for idx in df.index}
+
+    def read(idx):
+        try:
+            v = df.loc[idx, col]
+            return None if pd.isna(v) else float(v)
+        except Exception:
+            return None
+
     for key in keys:
-        for idx in df.index:
-            if key.lower() in str(idx).lower():
-                try:
-                    v = df.loc[idx, col]
-                    return None if pd.isna(v) else float(v)
-                except:
-                    pass
+        k = key.lower()
+        if k in labels:
+            v = read(labels[k])
+            if v is not None:
+                return v
+    for key in keys:
+        k = key.lower()
+        for lbl, idx in labels.items():
+            if k in lbl:
+                v = read(idx)
+                if v is not None:
+                    return v
     return None
 
 
-def calculate_piotroski(balance_sheet, financials, cashflow):
+def calculate_piotroski(balance_sheet, financials, cashflow, info=None):
+    if is_financial(info):
+        return None  # F5/F6/F8/F9 have no meaning on a bank balance sheet
     if balance_sheet is None or balance_sheet.empty:
         return None
     if financials is None or financials.empty:
@@ -29,27 +50,27 @@ def calculate_piotroski(balance_sheet, financials, cashflow):
     try:
         bs, fs, cf = balance_sheet, financials, cashflow
 
-        ta0 = _get_value(bs, 0, 'total assets')
-        ta1 = _get_value(bs, 1, 'total assets')
-        ni0 = _get_value(fs, 0, 'net income')
-        ni1 = _get_value(fs, 1, 'net income')
-        ocf0 = _get_value(cf, 0, 'operating cash flow')
-        ltd0 = _get_value(bs, 0, 'long term debt')
-        ltd1 = _get_value(bs, 1, 'long term debt')
-        ca0 = _get_value(bs, 0, 'current assets')
-        cl0 = _get_value(bs, 0, 'current liabilities')
-        ca1 = _get_value(bs, 1, 'current assets')
-        cl1 = _get_value(bs, 1, 'current liabilities')
-        sh0 = _get_value(bs, 0, 'ordinary shares', 'common stock')
-        sh1 = _get_value(bs, 1, 'ordinary shares', 'common stock')
-        gp0 = _get_value(fs, 0, 'gross profit')
-        rev0 = _get_value(fs, 0, 'total revenue')
-        gp1 = _get_value(fs, 1, 'gross profit')
-        rev1 = _get_value(fs, 1, 'total revenue')
+        ta0 = get_line_item(bs, 0, 'total assets')
+        ta1 = get_line_item(bs, 1, 'total assets')
+        ni0 = get_line_item(fs, 0, 'net income')
+        ni1 = get_line_item(fs, 1, 'net income')
+        ocf0 = get_line_item(cf, 0, 'operating cash flow')
+        ltd0 = get_line_item(bs, 0, 'long term debt')
+        ltd1 = get_line_item(bs, 1, 'long term debt')
+        ca0 = get_line_item(bs, 0, 'current assets')
+        cl0 = get_line_item(bs, 0, 'current liabilities')
+        ca1 = get_line_item(bs, 1, 'current assets')
+        cl1 = get_line_item(bs, 1, 'current liabilities')
+        sh0 = get_line_item(bs, 0, 'ordinary shares', 'common stock')
+        sh1 = get_line_item(bs, 1, 'ordinary shares', 'common stock')
+        gp0 = get_line_item(fs, 0, 'gross profit')
+        rev0 = get_line_item(fs, 0, 'total revenue')
+        gp1 = get_line_item(fs, 1, 'gross profit')
+        rev1 = get_line_item(fs, 1, 'total revenue')
 
         avg_ta0 = (ta0 + ta1) / 2 if ta0 and ta1 else ta0
         avg_ta1 = None
-        ta2 = _get_value(bs, 2, 'total assets')
+        ta2 = get_line_item(bs, 2, 'total assets')
         if ta1 and ta2:
             avg_ta1 = (ta1 + ta2) / 2
         elif ta1:
@@ -76,7 +97,9 @@ def calculate_piotroski(balance_sheet, financials, cashflow):
         details['F3'] = {'label': 'ROA Meningkat YoY', 'pass': bool(f3),
                          'value': f'{roa0*100:.1f}% vs {roa1*100:.1f}%' if (roa0 and roa1) else '—'}
 
-        ocf_ta = ocf0 / ta0 if ocf0 and ta0 else None
+        # Same denominator as ROA (average total assets), else the comparison
+        # is apples-to-oranges and F4 is biased by asset growth.
+        ocf_ta = ocf0 / avg_ta0 if ocf0 and avg_ta0 else None
         f4 = 1 if ocf_ta and roa0 and ocf_ta > roa0 else 0
         score += f4
         details['F4'] = {'label': 'Kualitas Laba (OCF>NI)', 'pass': bool(f4),
@@ -119,8 +142,8 @@ def calculate_piotroski(balance_sheet, financials, cashflow):
         if len(bs.columns) >= 3 and len(fs.columns) >= 3:
             try:
                 prev_score = _quick_piotroski(bs, fs, cf)
-            except:
-                pass
+            except Exception as e:
+                print(f"Piotroski trend error: {e}")
 
         trend = None
         if prev_score is not None:
@@ -134,44 +157,49 @@ def calculate_piotroski(balance_sheet, financials, cashflow):
             'trend': trend,
             'details': details,
         }
-    except:
+    except Exception as e:
+        print(f"Piotroski error: {e}")
         return None
 
 
 def _quick_piotroski(bs, fs, cf):
-    ta0 = _get_value(bs, 1, 'total assets')
-    ta1 = _get_value(bs, 2, 'total assets')
-    ni0 = _get_value(fs, 1, 'net income')
-    ocf0 = _get_value(cf, 1, 'operating cash flow') if len(cf.columns) >= 2 else None
+    ta0 = get_line_item(bs, 1, 'total assets')
+    ta1 = get_line_item(bs, 2, 'total assets')
+    ni0 = get_line_item(fs, 1, 'net income')
+    ni1 = get_line_item(fs, 2, 'net income')
+    ocf0 = get_line_item(cf, 1, 'operating cash flow') if len(cf.columns) >= 2 else None
     if not ta0 or not ni0:
         return None
     avg_ta = (ta0 + ta1) / 2 if ta0 and ta1 else ta0
+    ta2 = get_line_item(bs, 3, 'total assets')
+    avg_ta_prev = (ta1 + ta2) / 2 if ta1 and ta2 else ta1
     s = 0
     roa = ni0 / avg_ta if avg_ta else None
+    roa_prev = ni1 / avg_ta_prev if ni1 and avg_ta_prev else None
     if roa and roa > 0: s += 1
     if ocf0 and ocf0 > 0: s += 1
-    if roa: s += 1
-    ocf_ta = ocf0 / ta0 if ocf0 and ta0 else None
+    if roa and roa_prev and roa > roa_prev: s += 1
+    ocf_ta = ocf0 / avg_ta if ocf0 and avg_ta else None
     if ocf_ta and roa and ocf_ta > roa: s += 1
-    ltd0 = _get_value(bs, 1, 'long term debt')
-    ltd1 = _get_value(bs, 2, 'long term debt')
+    ltd0 = get_line_item(bs, 1, 'long term debt')
+    ltd1 = get_line_item(bs, 2, 'long term debt')
     lev0 = ltd0 / ta0 if ltd0 is not None and ta0 else None
     lev1 = ltd1 / ta1 if ltd1 is not None and ta1 else None
     if lev0 is not None and lev1 is not None and lev0 <= lev1: s += 1
-    ca0 = _get_value(bs, 1, 'current assets')
-    cl0 = _get_value(bs, 1, 'current liabilities')
-    ca1 = _get_value(bs, 2, 'current assets')
-    cl1 = _get_value(bs, 2, 'current liabilities')
+    ca0 = get_line_item(bs, 1, 'current assets')
+    cl0 = get_line_item(bs, 1, 'current liabilities')
+    ca1 = get_line_item(bs, 2, 'current assets')
+    cl1 = get_line_item(bs, 2, 'current liabilities')
     cr0 = ca0 / cl0 if ca0 and cl0 else None
     cr1 = ca1 / cl1 if ca1 and cl1 else None
     if cr0 and cr1 and cr0 >= cr1: s += 1
-    sh0 = _get_value(bs, 1, 'ordinary shares', 'common stock')
-    sh1 = _get_value(bs, 2, 'ordinary shares', 'common stock')
+    sh0 = get_line_item(bs, 1, 'ordinary shares', 'common stock')
+    sh1 = get_line_item(bs, 2, 'ordinary shares', 'common stock')
     if sh0 and sh1 and sh0 <= sh1 * 1.02: s += 1
-    gp0 = _get_value(fs, 1, 'gross profit')
-    rev0 = _get_value(fs, 1, 'total revenue')
-    gp1 = _get_value(fs, 2, 'gross profit')
-    rev1 = _get_value(fs, 2, 'total revenue')
+    gp0 = get_line_item(fs, 1, 'gross profit')
+    rev0 = get_line_item(fs, 1, 'total revenue')
+    gp1 = get_line_item(fs, 2, 'gross profit')
+    rev1 = get_line_item(fs, 2, 'total revenue')
     gm0 = gp0 / rev0 if gp0 and rev0 else None
     gm1 = gp1 / rev1 if gp1 and rev1 else None
     if gm0 and gm1 and gm0 >= gm1: s += 1

@@ -39,5 +39,6 @@ def calculate_atr(hist, period=14):
             'pct':   atr_pct,
             'signal': signal,
         }
-    except:
+    except Exception as e:
+        print(f"ATR error: {e}")
         return None

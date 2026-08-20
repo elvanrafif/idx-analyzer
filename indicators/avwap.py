@@ -28,5 +28,6 @@ def calculate_avwap(hist):
             'signal': signal,
             'pct_diff': pct_diff,
         }
-    except:
+    except Exception as e:
+        print(f"AVWAP error: {e}")
         return None

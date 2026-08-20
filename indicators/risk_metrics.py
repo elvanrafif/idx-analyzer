@@ -5,7 +5,7 @@ import os
 def get_risk_free_rate():
     try:
         return float(os.environ.get('RISK_FREE_RATE', '0.065'))
-    except:
+    except (TypeError, ValueError):
         return 0.065
 
 
@@ -21,7 +21,8 @@ def calculate_sharpe(hist_1y):
         ann_std = ret.std() * np.sqrt(252)
         rf = get_risk_free_rate()
         return round((ann_ret - rf) / ann_std, 3) if ann_std else None
-    except:
+    except Exception as e:
+        print(f"Sharpe error: {e}")
         return None
 
 
@@ -34,11 +35,16 @@ def calculate_sortino(hist_1y):
         if len(ret) == 0:
             return None
         ann_ret = ret.mean() * 252
-        down = ret[ret < 0]
-        down_std = down.std() * np.sqrt(252) if len(down) > 0 else 0
         rf = get_risk_free_rate()
+        # Downside deviation = RMS of returns below the daily MAR, divided by
+        # the FULL sample size (not just the losing days). ret[ret<0].std()
+        # under-states it by both dropping winners from n and de-meaning.
+        mar_daily = rf / 252
+        shortfall = np.minimum(ret - mar_daily, 0)
+        down_std = float(np.sqrt((shortfall ** 2).mean()) * np.sqrt(252))
         return round((ann_ret - rf) / down_std, 3) if down_std else None
-    except:
+    except Exception as e:
+        print(f"Sortino error: {e}")
         return None
 
 
@@ -54,5 +60,6 @@ def calculate_fcf_yield(info):
         y = fcf / mcap
         sig = 'MENARIK' if y > 0.05 else 'NETRAL' if y > 0.02 else ('RENDAH' if y > 0 else 'NEGATIF')
         return {'fcf': fcf, 'mcap': mcap, 'yield': round(y, 4), 'signal': sig}
-    except:
+    except Exception as e:
+        print(f"FCF yield error: {e}")
         return None

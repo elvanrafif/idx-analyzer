@@ -52,5 +52,6 @@ def calculate_adx(hist, period=14):
             'strength': strength,
             'direction': direction,
         }
-    except:
+    except Exception as e:
+        print(f"ADX error: {e}")
         return None

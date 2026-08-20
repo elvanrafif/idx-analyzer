@@ -1,19 +1,40 @@
-def _rnd(x):
-    return round(x * 2) / 2  # round to nearest 0.5
+def idx_tick(price):
+    """IDX tick size by price band (Peraturan Bursa II-A)."""
+    if price < 200:
+        return 1
+    if price < 500:
+        return 2
+    if price < 2000:
+        return 5
+    if price < 5000:
+        return 10
+    return 25
+
+
+def _rnd(x, tick=None):
+    """Snap to a tradeable IDX price. A level at 1237.5 cannot be ordered."""
+    t = tick or idx_tick(x)
+    return round(round(x / t) * t, 2)
 
 
 def calculate_key_levels(hist):
-    """Standard pivot points using last 5 trading days."""
-    if hist is None or len(hist) < 5:
+    """Classic pivot points from the last COMPLETED 5-day window.
+
+    The current bar is excluded on purpose: including today's high/low makes
+    every level drift during the session, so a 'resistance' printed at 10:00
+    is a different number at 14:00.
+    """
+    if hist is None or len(hist) < 6:
         return None
     try:
         hist = hist.dropna(subset=['Close', 'High', 'Low'])
-        if len(hist) < 5:
+        if len(hist) < 6:
             return None
-        recent = hist.tail(5)
-        high = float(recent['High'].max())
-        low = float(recent['Low'].min())
-        close = float(hist['Close'].iloc[-1])
+        prior = hist.iloc[-6:-1]           # last 5 completed bars
+        high = float(prior['High'].max())
+        low = float(prior['Low'].min())
+        close = float(prior['Close'].iloc[-1])
+        current = float(hist['Close'].iloc[-1])
 
         pivot = (high + low + close) / 3
         r1 = 2 * pivot - low
@@ -23,11 +44,12 @@ def calculate_key_levels(hist):
         s2 = pivot - (high - low)
         s3 = low - 2 * (high - pivot)
 
+        tick = idx_tick(current)
         return {
-            'current': _rnd(close),
-            'pivot':   _rnd(pivot),
-            'r1': _rnd(r1), 'r2': _rnd(r2), 'r3': _rnd(r3),
-            's1': _rnd(s1), 's2': _rnd(s2), 's3': _rnd(s3),
+            'current': _rnd(current, tick),
+            'pivot':   _rnd(pivot, tick),
+            'r1': _rnd(r1, tick), 'r2': _rnd(r2, tick), 'r3': _rnd(r3, tick),
+            's1': _rnd(s1, tick), 's2': _rnd(s2, tick), 's3': _rnd(s3, tick),
         }
     except Exception as e:
         print(f"Key levels error: {e}")
@@ -43,6 +65,7 @@ def calculate_outlook(key_levels, composite, atr=None):
         score = (composite or {}).get('final', 50)
         s1, s2 = key_levels['s1'], key_levels['s2']
         r1, r2, r3 = key_levels['r1'], key_levels['r2'], key_levels['r3']
+        tick = idx_tick(current)
 
         if current <= r1:
             entry_low, entry_high = s1, r1
@@ -56,16 +79,20 @@ def calculate_outlook(key_levels, composite, atr=None):
             stop_loss = s1
 
         entry_mid = (entry_low + entry_high) / 2
+        if not entry_mid:
+            return None
+        entry_mid = _rnd(entry_mid, tick)
 
-        # ATR-based stop loss overrides pivot-based when available
-        if atr and atr.get('value') and entry_mid:
-            stop_loss = round(entry_mid - 2 * atr['value'], 0)
-            sl_pct    = round(2 * atr['pct'], 1)
-        else:
-            sl_pct = abs((entry_mid - stop_loss) / entry_mid * 100) if entry_mid else 0
-        t1_pct = (t1 - entry_mid) / entry_mid * 100 if entry_mid else 0
-        t2_pct = (t2 - entry_mid) / entry_mid * 100 if entry_mid else 0
-        rr = round(t2_pct / sl_pct, 1) if sl_pct > 0 else 0
+        if atr and atr.get('value'):
+            stop_loss = _rnd(entry_mid - 2 * atr['value'], tick)
+        # Always measure the stop from the entry, never from spot: mixing the
+        # two made rr compare percentages with different denominators.
+        sl_pct = abs((entry_mid - stop_loss) / entry_mid * 100)
+
+        t1_pct = (t1 - entry_mid) / entry_mid * 100
+        t2_pct = (t2 - entry_mid) / entry_mid * 100
+        # R:R against the FIRST target — the one actually likely to be hit.
+        rr = round(t1_pct / sl_pct, 1) if sl_pct > 0 else 0
 
         if score >= 65:   action, action_cls = 'ACCUMULATE', 'bull'
         elif score >= 50: action, action_cls = 'HOLD', 'neutral'
@@ -73,7 +100,7 @@ def calculate_outlook(key_levels, composite, atr=None):
         else:             action, action_cls = 'AVOID', 'bear'
 
         def f(x):
-            s = f"{x:,.1f}"
+            s = f"{x:,.0f}"
             return 'Rp ' + s.replace(',', '.')
 
         return {
@@ -83,7 +110,7 @@ def calculate_outlook(key_levels, composite, atr=None):
             'action_cls': action_cls,
             'entry_low': entry_low,
             'entry_high': entry_high,
-            'entry_mid': round(entry_mid, 1),
+            'entry_mid': entry_mid,
             'stop_loss': stop_loss,
             'sl_pct': round(sl_pct, 1),
             'target1': t1,

@@ -23,5 +23,6 @@ def calculate_williams_r(hist, period=14):
             signal = 'NEUTRAL'
 
         return {'value': val, 'signal': signal}
-    except:
+    except Exception as e:
+        print(f"Williams %R error: {e}")
         return None

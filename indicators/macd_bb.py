@@ -12,7 +12,9 @@ def calculate_macd_bb(hist_6m):
         sig = macd.ewm(span=9, adjust=False).mean()
         hst = macd - sig
         sma20 = close.rolling(20).mean()
-        std20 = close.rolling(20).std()
+        # Bollinger's definition uses the population std (ddof=0); pandas
+        # defaults to the sample std.
+        std20 = close.rolling(20).std(ddof=0)
         upper = sma20 + 2 * std20
         lower = sma20 - 2 * std20
         cp = float(close.iloc[-1])
@@ -25,7 +27,17 @@ def calculate_macd_bb(hist_6m):
         csma = float(sma20.iloc[-1])
         bb_pct = (cp - cl) / (cu - cl) if (cu - cl) != 0 else 0.5
         bandwidth = round((cu - cl) / csma, 4) if csma != 0 else 0
-        squeeze = bandwidth < 0.03
+
+        # Squeeze is relative to the stock's own volatility regime, not an
+        # absolute 3%: blue chips would always "squeeze", penny stocks never.
+        bw_series = ((upper - lower) / sma20).dropna()
+        bw_window = bw_series.iloc[-120:]
+        if len(bw_window) >= 40:
+            bw_rank = round(float((bw_window <= bandwidth).mean()), 3)
+            squeeze = bw_rank <= 0.15
+        else:
+            bw_rank = None
+            squeeze = False
         msig = 'BULLISH' if cm > cs else 'BEARISH'
         threshold = cp * 0.001
         cross = None
@@ -48,9 +60,11 @@ def calculate_macd_bb(hist_6m):
                 'lower': round(cl, 0),
                 'pct_b': round(bb_pct, 2),
                 'bandwidth': bandwidth,
+                'bw_rank': bw_rank,
                 'squeeze': squeeze,
                 'signal': bsig,
             },
         }
-    except:
+    except Exception as e:
+        print(f"MACD/BB error: {e}")
         return None

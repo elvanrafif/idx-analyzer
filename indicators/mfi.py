@@ -34,5 +34,6 @@ def calculate_mfi(hist, period=14):
             signal = 'NEUTRAL'
 
         return {'value': val, 'signal': signal}
-    except:
+    except Exception as e:
+        print(f"MFI error: {e}")
         return None

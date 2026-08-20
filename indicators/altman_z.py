@@ -1,47 +1,24 @@
-import pandas as pd
+from .fundamental import is_financial
+from .piotroski import get_line_item
 
 
-def _bsv(bs, *keys):
-    col = bs.columns[0]
-    for key in keys:
-        for idx in bs.index:
-            if key.lower() in str(idx).lower():
-                try:
-                    v = bs.loc[idx, col]
-                    return None if pd.isna(v) else float(v)
-                except:
-                    pass
-    return None
-
-
-def _fsv(fs, *keys):
-    col = fs.columns[0]
-    for key in keys:
-        for idx in fs.index:
-            if key.lower() in str(idx).lower():
-                try:
-                    v = fs.loc[idx, col]
-                    return None if pd.isna(v) else float(v)
-                except:
-                    pass
-    return None
-
-
-def calculate_altman_z(balance_sheet, financials):
+def calculate_altman_z(balance_sheet, financials, info=None):
+    if is_financial(info):
+        return None  # Z-score is not defined for banks/insurers
     if balance_sheet is None or balance_sheet.empty:
         return None
     if financials is None or financials.empty:
         return None
     try:
         bs, fs = balance_sheet, financials
-        ta = _bsv(bs, 'total assets')
-        ca = _bsv(bs, 'current assets')
-        cl = _bsv(bs, 'current liabilities')
-        re = _bsv(bs, 'retained earnings')
-        te = _bsv(bs, 'stockholders equity', 'total equity')
-        tl = _bsv(bs, 'total liabilities')
-        ebit = _fsv(fs, 'operating income', 'ebit')
-        if not all([ta, ca, cl, te, tl]) or ta == 0 or tl == 0:
+        ta = get_line_item(bs, 0, 'total assets')
+        ca = get_line_item(bs, 0, 'current assets')
+        cl = get_line_item(bs, 0, 'current liabilities')
+        re = get_line_item(bs, 0, 'retained earnings')
+        te = get_line_item(bs, 0, 'stockholders equity', 'total equity')
+        tl = get_line_item(bs, 0, 'total liabilities')
+        ebit = get_line_item(fs, 0, 'operating income', 'ebit')
+        if None in (ta, ca, cl, te, tl) or not ta or not tl:
             return None
         X1 = (ca - cl) / ta
         X2 = (re or 0) / ta
@@ -65,5 +42,6 @@ def calculate_altman_z(balance_sheet, financials):
                 'X4 (Equity/Liab)': round(X4, 3),
             },
         }
-    except:
+    except Exception as e:
+        print(f"Altman Z error: {e}")
         return None
