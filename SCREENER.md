@@ -162,63 +162,63 @@ Dua pengaman: run baru ditolak kalau ada run yang masih jalan (409), dan ditolak
 kalau run terakhir selesai kurang dari 5 menit lalu (429). Status `running` yang
 lebih tua dari 45 menit dianggap sisa crash, bukan run hidup.
 
-## Keamanan: POST hanya dari server itu sendiri
+## Akses & password
 
-`POST /api/screener/run` dan `POST /api/screener/profiles` dijaga `@local_only`.
-GET tetap terbuka — halaman dan hasil masih bisa dilihat dari mana saja, cuma
-tombol Jalankan & Setelan yang mati (halaman menampilkan banner mode baca-saja).
+Endpoint yang menyentuh data screener (`GET /api/screener`, `GET/POST
+/api/screener/profiles`, `POST /api/screener/run`) dijaga `@admin_required`.
+Lolos kalau salah satu terpenuhi:
 
-Syarat lolos: `remote_addr` loopback **dan** tidak ada satu pun header proxy
-(`X-Forwarded-For`, `X-Real-IP`, `Forwarded`, `X-Forwarded-Host`).
+1. **Request benar-benar dari server itu sendiri** — `remote_addr` loopback
+   **dan** tidak ada header proxy. Ini yang dipakai cron, tanpa password.
+2. **Header `X-Admin-Token` cocok** dengan `SCREENER_ADMIN_TOKEN` di `.env`.
 
-Kenapa dua syarat, bukan cuma loopback? Karena kalau kamu pasang nginx/Caddy di
-depannya, `remote_addr` berubah jadi `127.0.0.1` untuk **semua** pengunjung
-termasuk dari internet — cek loopback sendirian justru akan meloloskan semua
-orang. Sebaliknya, penyerang yang memalsukan `X-Forwarded-For: 127.0.0.1` juga
-ditolak, karena keberadaan header itu sendiri yang mendiskualifikasi.
+Halaman `/screener` meminta password lewat `prompt()`, menyimpannya di
+`sessionStorage` (mati saat tab ditutup), lalu mengirimkannya sebagai
+`X-Admin-Token` di setiap request. Password salah → 403 → prompt lagi.
 
-Terverifikasi:
+`GET /api/screener/status` sengaja dibiarkan terbuka; halaman perlu bisa
+bertanya "apakah saya terkunci?" sebelum punya password. Isinya cuma
+penghitung progress.
+
+### Kenapa syaratnya loopback DAN tanpa header proxy
+
+Kalau cuma cek loopback: dengan nginx/Cloudflare di depan, `remote_addr`
+berubah jadi `127.0.0.1` untuk **semua** pengunjung termasuk dari internet —
+cek itu justru meloloskan semua orang. Sebaliknya penyerang yang memalsukan
+`X-Forwarded-For: 127.0.0.1` juga ditolak, karena keberadaan header itu
+sendiri yang mendiskualifikasi. Terverifikasi:
 
 | Skenario | Hasil |
 |---|---|
-| dari server sendiri, gunicorn langsung | ✅ 200 |
-| dari internet, gunicorn langsung | ❌ 403 |
-| lewat nginx (remote_addr jadi loopback) | ❌ 403 |
-| lewat proxy, header `X-Real-IP` / `Forwarded` | ❌ 403 |
-| penyerang memalsukan `X-Forwarded-For: 127.0.0.1` | ❌ 403 |
+| dari server sendiri, gunicorn langsung | ✅ lolos tanpa password |
+| dari internet, gunicorn langsung | ❌ perlu password |
+| lewat Cloudflare/nginx, tanpa password | ❌ 403 |
+| lewat Cloudflare/nginx, password salah | ❌ 403 |
+| lewat Cloudflare/nginx, password benar | ✅ 200 |
+| memalsukan `X-Forwarded-For: 127.0.0.1` | ❌ 403 |
 
-### Cara memakai tombolnya dari laptop
+### Seberapa kuat ini sebenarnya
 
-SSH tunnel — tidak membuka port apa pun ke internet:
+**Tidak kuat.** Ini guard tipis, bukan keamanan. Password dimasukkan lewat
+`prompt()` browser lalu dikirim sebagai header — siapa pun yang membaca
+`static/screener.js` tahu cara memanggil API-nya langsung dengan `curl`, dan
+password-nya sendiri ada di `.env` server, bukan di-hash.
 
-```bash
-ssh -L 8080:127.0.0.1:8080 user@vps
-```
+Cukup untuk: menghalau orang yang tidak sengaja menemukan URL-nya.
+Tidak cukup untuk: data yang benar-benar rahasia, atau kalau ada yang punya
+motif menembusnya.
 
-Lalu buka `http://127.0.0.1:8080/screener` di laptop. Request tiba di Flask
-sebagai loopback tanpa header proxy, jadi tombolnya hidup.
+Kalau nanti butuh yang sungguhan, jangan tambal ini — pasang **Cloudflare
+Access** atau **basic auth di reverse proxy** di depan aplikasi. Keduanya
+bekerja sebelum request menyentuh Flask, dan tidak bergantung pada JavaScript
+yang bisa dibaca siapa saja.
 
-### Kalau benar-benar butuh trigger dari luar
+### Kalau kamu sedang di mesin itu sendiri
 
-Isi `SCREENER_ADMIN_TOKEN` di `.env` dengan nilai acak:
-
-```bash
-python3 -c "import secrets; print(secrets.token_urlsafe(32))"
-```
-
-Klien harus mengirim header `X-Admin-Token`. Dibandingkan dengan
-`hmac.compare_digest` supaya tidak bisa ditebak byte demi byte.
-
-```bash
-curl -X POST https://vps-kamu/api/screener/run -H "X-Admin-Token: ..."
-```
-
-Kalau token kosong (bawaannya), jalur ini mati total dan hanya loopback yang
-diterima. Kirim token hanya lewat HTTPS.
-
-> Halaman analyzer (`/`, `/api/analyze`) tidak ikut dijaga — semuanya GET dan
-> tidak mengubah apa pun. Tapi tetap saja siapa pun yang bisa menjangkaunya
-> bisa memicu request ke Yahoo lewat servermu.
+Buka lewat `127.0.0.1`, bukan IP LAN. `192.168.x.x` dihitung sebagai mesin
+lain, jadi tetap diminta password. Dari jauh:
+`ssh -L 8080:127.0.0.1:8080 user@vps`, lalu buka `http://127.0.0.1:8080/screener`
+— tidak perlu password sama sekali.
 
 ## Opsi CLI
 

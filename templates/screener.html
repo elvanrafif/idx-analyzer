@@ -30,8 +30,11 @@
 
   <div class="scr-alert" id="scr-alert" style="display:none"></div>
   <div class="scr-readonly" id="scr-readonly" style="display:none">
-    Mode baca-saja — Jalankan &amp; Setelan hanya bisa dari server itu sendiri.
-    Untuk akses penuh: <code>ssh -L 8080:127.0.0.1:8080 user@vps</code>
+    <b>Mode baca-saja</b> — Jalankan &amp; Setelan hanya dilayani untuk request
+    dari server itu sendiri.<br>
+    Kalau kamu <em>sedang di mesin itu</em>: buka lewat <code>127.0.0.1</code>,
+    bukan IP LAN — <code>192.168.x.x</code> dihitung sebagai mesin lain.<br>
+    Kalau kamu <em>dari jauh</em>: <code>ssh -L 8080:127.0.0.1:8080 user@vps</code>
     lalu buka <code>http://127.0.0.1:8080/screener</code>
   </div>
   <div class="scr-progress" id="scr-progress" style="display:none">

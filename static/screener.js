@@ -4,7 +4,50 @@
 var root = document.getElementById('scr-root');
 // `active` is the results tab; `sActive` is the settings-modal tab. Sharing one
 // variable made switching profiles in settings silently switch the results tab.
-var state = { data: null, profiles: null, active: null, sActive: null, poll: null, admin: null };
+var state = { data: null, profiles: null, active: null, sActive: null,
+              poll: null, admin: null, running: false };
+
+/* ── password gate ──────────────────────────────────────────────────────────
+   Thin on purpose. The password is replayed as X-Admin-Token on every call, so
+   the server does the actual checking -- but anyone who reads this file can
+   call the API themselves. It stops a passer-by, not an attacker.
+   Kept in sessionStorage so it dies with the tab, not in localStorage. */
+
+var PW_KEY = 'scr_pw';
+
+function pw() { try { return sessionStorage.getItem(PW_KEY) || ''; } catch (e) { return ''; } }
+function setPw(v) {
+  try { v ? sessionStorage.setItem(PW_KEY, v) : sessionStorage.removeItem(PW_KEY); } catch (e) {}
+}
+
+/* Every request goes through here so the header can never be forgotten. */
+function api(url, opts) {
+  opts = opts || {};
+  var h = {};
+  Object.keys(opts.headers || {}).forEach(function (k) { h[k] = opts.headers[k]; });
+  var p = pw();
+  if (p) h['X-Admin-Token'] = p;
+  opts.headers = h;
+  return fetch(url, opts);
+}
+
+function lockScreen(msg) {
+  root.innerHTML =
+    '<div class="scr-empty scr-locked">' +
+      '<div class="scr-lock-icon">🔒</div>' +
+      '<p>' + esc(msg || 'Halaman ini terkunci.') + '</p>' +
+      '<button class="scr-btn" id="scr-unlock">Masukkan password</button>' +
+    '</div>';
+  var b = el('scr-unlock');
+  if (b) b.onclick = function () { askPw(true); };
+}
+
+function askPw(retry) {
+  var v = window.prompt(retry ? 'Password salah. Coba lagi:' : 'Password screener:');
+  if (v === null) { lockScreen('Dibatalkan.'); return; }
+  setPw(v.trim());
+  boot();
+}
 
 function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"]/g, function (c) {
@@ -111,7 +154,17 @@ function profileBlock(name) {
 function render() {
   var d = state.data;
   if (!d || d.error) {
-    root.innerHTML = '<div class="scr-empty">' + esc((d && d.error) || 'Gagal memuat.') + '</div>';
+    var msg;
+    if (state.running) {
+      msg = 'Screener sedang berjalan — hasil muncul setelah selesai.';
+    } else if (state.admin === false) {
+      // Telling a read-only visitor to "klik Jalankan" contradicts the
+      // disabled button right above it.
+      msg = 'Belum ada hasil screener. Jalankan dari server: python3 screener.py';
+    } else {
+      msg = (d && d.error) || 'Gagal memuat.';
+    }
+    root.innerHTML = '<div class="scr-empty">' + esc(msg) + '</div>';
     return;
   }
   var names = Object.keys(d.profiles || {});
@@ -186,8 +239,9 @@ function setRunning(on, text) {
 }
 
 function pollStatus() {
-  fetch('/api/screener/status').then(function (r) { return r.json(); }).then(function (s) {
+  api('/api/screener/status').then(function (r) { return r.json(); }).then(function (s) {
     applyAdmin(!!s.admin);
+    state.running = s.state === 'running';
     if (s.state === 'running') {
       var label = s.stage === 'analyse' && s.total
         ? 'Analisis ' + s.done + '/' + s.total + (s.ticker ? ' · ' + s.ticker : '')
@@ -200,6 +254,7 @@ function pollStatus() {
       return;
     }
     clearInterval(state.poll); state.poll = null;
+    state.running = false;
     setRunning(false);
     if (s.state === 'error') {
       alertBar('Run gagal: ' + (s.error || s.stage), true);
@@ -227,7 +282,7 @@ function alertBar(msg, isErr) {
 
 function runNow() {
   setRunning(true, 'Memulai…');
-  fetch('/api/screener/run', {
+  api('/api/screener/run', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
   }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
@@ -298,7 +353,7 @@ function settingsForm(name, p) {
 }
 
 function openSettings() {
-  fetch('/api/screener/profiles').then(function (r) { return r.json(); }).then(function (d) {
+  api('/api/screener/profiles').then(function (r) { return r.json(); }).then(function (d) {
     if (d.error) { alertBar(d.error, true); return; }
     state.profiles = d.profiles;
     var names = Object.keys(d.profiles);
@@ -371,7 +426,7 @@ function wireForm() {
   el('f-save').onclick = function (e) {
     e.preventDefault();
     var patch = {}; patch[state.sActive] = readForm();
-    fetch('/api/screener/profiles', {
+    api('/api/screener/profiles', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch)
     }).then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
@@ -388,7 +443,7 @@ function wireForm() {
   el('f-reset').onclick = function (e) {
     e.preventDefault();
     var patch = {}; patch[state.sActive] = {};
-    fetch('/api/screener/profiles', {
+    api('/api/screener/profiles', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(patch)
     }).then(function (r) { return r.json(); }).then(function (d) {
@@ -405,9 +460,12 @@ function wireForm() {
 
 function load(date) {
   root.innerHTML = '<p class="no-data">Memuat…</p>';
-  fetch('/api/screener' + (date ? '?date=' + encodeURIComponent(date) : ''))
-    .then(function (r) { return r.json(); })
-    .then(function (d) { state.data = d; render(); })
+  api('/api/screener' + (date ? '?date=' + encodeURIComponent(date) : ''))
+    .then(function (r) { return r.json().then(function (d) { return { ok: r.ok, d: d }; }); })
+    .then(function (res) {
+      if (!res.ok && res.d.locked) { setPw(''); askPw(true); return; }
+      state.data = res.d; render();
+    })
     .catch(function (e) {
       root.innerHTML = '<div class="scr-empty">Gagal memuat: ' + esc(e.message) + '</div>';
     });
@@ -415,9 +473,25 @@ function load(date) {
 
 el('scr-run').addEventListener('click', runNow);
 el('scr-settings').addEventListener('click', openSettings);
-load();
-// A run started from cron or another tab should show up here too.
-fetch('/api/screener/status').then(function (r) { return r.json(); }).then(function (s) {
-  applyAdmin(!!s.admin);
-  if (s.state === 'running') startPolling();
-});
+
+function boot() {
+  api('/api/screener/status')
+    .then(function (r) { return r.json(); })
+    .then(function (s) {
+      applyAdmin(!!s.admin);
+      state.running = s.state === 'running';
+      if (s.needs_password) {
+        // Wrong or missing password: clear it so the next prompt starts clean.
+        if (pw()) { setPw(''); askPw(true); } else { askPw(false); }
+        return;
+      }
+      load();
+      if (s.state === 'running') startPolling();
+    })
+    .catch(function (e) {
+      root.innerHTML = '<div class="scr-empty">Gagal menghubungi server: ' +
+        esc(e.message) + '</div>';
+    });
+}
+
+boot();

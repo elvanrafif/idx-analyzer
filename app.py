@@ -149,8 +149,10 @@ MIN_RUN_INTERVAL_SEC = 300   # don't let a button masher rate-limit our IP
 LOOPBACK = {'127.0.0.1', '::1', 'localhost'}
 # Headers a reverse proxy adds when it forwards someone else's request.
 PROXY_HEADERS = ('X-Forwarded-For', 'X-Real-IP', 'Forwarded', 'X-Forwarded-Host')
-# Optional escape hatch: set SCREENER_ADMIN_TOKEN in .env to also allow remote
-# admin from a client that sends the matching X-Admin-Token header.
+# Shared secret for anything not coming from the machine itself. The screener
+# page prompts for it and replays it as X-Admin-Token. Deliberately thin: it
+# stops a passer-by, not someone who reads the JS and calls the API directly.
+# Leave it empty to allow loopback only.
 ADMIN_TOKEN = os.environ.get('SCREENER_ADMIN_TOKEN', '').strip()
 
 
@@ -177,14 +179,15 @@ def admin_ok():
     return False
 
 
-def local_only(fn):
+def admin_required(fn):
     @wraps(fn)
     def guard(*a, **kw):
         if not admin_ok():
             return jsonify({
-                "error": "Hanya bisa dijalankan dari server ini sendiri.",
-                "hint": "SSH tunnel: ssh -L 8080:127.0.0.1:8080 user@vps, "
-                        "lalu buka http://127.0.0.1:8080/screener"
+                "error": "Perlu password.",
+                "locked": True,
+                "hint": ("Set SCREENER_ADMIN_TOKEN di .env kalau belum."
+                         if not ADMIN_TOKEN else "Password salah atau belum diisi."),
             }), 403
         return fn(*a, **kw)
     return guard
@@ -203,6 +206,7 @@ def screener_page():
 
 
 @app.route('/api/screener')
+@admin_required
 def screener_data():
     dates = _screener_dates()
     if not dates:
@@ -225,10 +229,12 @@ def screener_data():
 def screener_status():
     st = screener_mod.read_status() or {"state": "idle"}
     st['admin'] = admin_ok()
+    st['needs_password'] = bool(ADMIN_TOKEN) and not st['admin']
     return jsonify(st)
 
 
 @app.route('/api/screener/profiles', methods=['GET'])
+@admin_required
 def screener_profiles():
     try:
         return jsonify({"profiles": profiles_mod.load(),
@@ -239,7 +245,7 @@ def screener_profiles():
 
 
 @app.route('/api/screener/profiles', methods=['POST'])
-@local_only
+@admin_required
 def screener_profiles_save():
     patch = request.get_json(silent=True)
     if not isinstance(patch, dict):
@@ -256,7 +262,7 @@ def screener_profiles_save():
 
 
 @app.route('/api/screener/run', methods=['POST'])
-@local_only
+@admin_required
 def screener_run():
     if screener_mod.run_in_progress():
         return jsonify({"error": "Run lain sedang berjalan.",

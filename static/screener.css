@@ -200,7 +200,16 @@
   border: 1px solid var(--accent);
 }
 .scr-btn:hover:not(:disabled) { filter: brightness(1.1); }
-.scr-btn:disabled { opacity: .55; cursor: default; }
+.scr-btn:disabled, .scr-btn[disabled] {
+  /* A filled teal button at 0.55 opacity still reads as clickable on a dark
+     background. Strip the fill entirely so disabled is unmistakable. */
+  background: transparent;
+  color: var(--text-secondary);
+  border-color: var(--border);
+  opacity: .6;
+  cursor: not-allowed;
+}
+.scr-btn:disabled:hover, .scr-btn[disabled]:hover { filter: none; }
 .scr-btn.ghost { background: var(--surface); color: var(--text-secondary); border-color: var(--border); }
 .scr-btn.ghost:hover { color: var(--accent); border-color: var(--border-mid); }
 
@@ -335,7 +344,6 @@
   background: var(--surface-2); color: var(--accent);
   padding: 1px 5px; border-radius: 3px;
 }
-.scr-btn[disabled] { cursor: not-allowed; }
 
 .scr-capped {
   font-size: 11.5px; padding: 8px 13px; margin-bottom: 10px;
@@ -343,3 +351,7 @@
   border: 1px solid var(--border); border-radius: 6px;
 }
 .scr-capped b { color: var(--text); }
+
+.scr-locked { padding: 50px 20px; }
+.scr-lock-icon { font-size: 30px; margin-bottom: 12px; opacity: .7; }
+.scr-locked p { margin: 0 0 16px; font-size: 12.5px; }
