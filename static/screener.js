@@ -329,6 +329,8 @@ function settingsForm(name, p) {
             '>' + lbl + '</option>';
         }).join('') + '</select>') +
       row('Gate RSI maks', 'buang yang sudah terlalu tinggi', inp('f-rsi', g.rsi_max)) +
+      row('Volume min (RVOL)', 'maks 5 hari; kosong = mati',
+          inp('f-rvol', g.min_rvol, 'type="number" step="0.1" min="0"')) +
       row('Kurva osilator', 'cara membaca RSI/Stoch/%B',
         '<select id="f-osc">' +
         [['mean_reversion', 'mean reversion — puncak di RSI 65'],
@@ -401,7 +403,11 @@ function readForm() {
       min_price: num(el('f-pmin').value),
       max_price: num(el('f-pmax').value)
     },
-    prescreen: { above_ema: ema === '' ? null : Number(ema), rsi_max: num(el('f-rsi').value) },
+    prescreen: {
+      above_ema: ema === '' ? null : Number(ema),
+      rsi_max: num(el('f-rsi').value),
+      min_rvol: num(el('f-rvol').value)
+    },
     weights: w,
     oscillator: el('f-osc').value,
     min_score: Number(el('f-score').value),

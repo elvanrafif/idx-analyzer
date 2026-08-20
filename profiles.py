@@ -33,7 +33,7 @@ BUILTIN = {
             'exclude_sectors': [],
             'exclude_tickers': [],
         },
-        'prescreen': {'above_ema': 50, 'rsi_max': 78},
+        'prescreen': {'above_ema': 50, 'rsi_max': 78, 'min_rvol': None},
         'weights': {
             'fundamental': 0.28, 'technical': 0.32, 'risk': 0.20,
             'momentum': 0.13, 'sentiment': 0.07,
@@ -56,7 +56,7 @@ BUILTIN = {
         },
         # No trend gate: a cheap healthy company below its EMA50 is exactly
         # what this profile wants to see.
-        'prescreen': {'above_ema': None, 'rsi_max': 70},
+        'prescreen': {'above_ema': None, 'rsi_max': 70, 'min_rvol': None},
         'weights': {
             'fundamental': 0.55, 'technical': 0.10, 'risk': 0.25,
             'momentum': 0.05, 'sentiment': 0.05,
@@ -81,7 +81,10 @@ BUILTIN = {
             'exclude_sectors': [],
             'exclude_tickers': [],
         },
-        'prescreen': {'above_ema': 50, 'rsi_max': 95},
+        # min_rvol is the false-breakout filter: a move with no volume behind
+        # it does not get scored at all. Measured as the highest RVOL of the
+        # last 5 sessions, so a breakout that fired days ago still counts.
+        'prescreen': {'above_ema': 50, 'rsi_max': 95, 'min_rvol': 1.5},
         'weights': {
             'fundamental': 0.10, 'technical': 0.40, 'risk': 0.05,
             'momentum': 0.35, 'sentiment': 0.10,
@@ -102,7 +105,7 @@ BUILTIN = {
             'exclude_sectors': [],
             'exclude_tickers': [],
         },
-        'prescreen': {'above_ema': 50, 'rsi_max': 95},
+        'prescreen': {'above_ema': 50, 'rsi_max': 95, 'min_rvol': 1.5},
         # Risk is Sharpe/Sortino/Altman -- all of which measure the very
         # volatility this profile is hunting, so it is switched off rather
         # than left to fight the momentum term.
@@ -150,6 +153,9 @@ def validate(p, name='?'):
         raise ValueError(f"profil '{name}': min_price > max_price")
     if not (0 <= float(p.get('min_score', 60)) <= 100):
         raise ValueError(f"profil '{name}': min_score harus 0-100")
+    mr = (p.get('prescreen') or {}).get('min_rvol')
+    if mr is not None and (not isinstance(mr, (int, float)) or mr < 0):
+        raise ValueError(f"profil '{name}': min_rvol harus angka >= 0 atau kosong")
     return p
 
 

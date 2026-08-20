@@ -9,7 +9,7 @@ from indicators.composite import calculate_composite, osc_score
 from profiles import BUILTIN, load, validate
 import screener as scr
 from screener import (dropped_vs, eligible_for, format_message,
-                      meets_requirements, passes_gate, reasons_for)
+                      meets_requirements, passes_gate, reasons_for, rvol_recent)
 from services.notifier import _split, esc, rp
 
 CHUNK_LIMIT = 3800
@@ -230,14 +230,59 @@ def test_universe_filters():
 
 
 def test_prescreen_gate_respects_profile():
-    below = {'sma': {'above_ema50': False, 'above_ema200': False}, 'rsi': {'value': 50.0}}
-    ripping = {'sma': {'above_ema50': True, 'above_ema200': True}, 'rsi': {'value': 86.0}}
+    below = {'sma': {'above_ema50': False, 'above_ema200': False},
+             'rsi': {'value': 50.0}, 'rvol': 2.0}
+    ripping = {'sma': {'above_ema50': True, 'above_ema200': True},
+               'rsi': {'value': 86.0}, 'rvol': 2.0}
 
     assert not passes_gate(P['default'], below)
     assert not passes_gate(P['default'], ripping), "RSI 86 exceeds default's 78 ceiling"
     assert passes_gate(P['gorengan'], ripping), "gorengan must let a runner through"
     # value has no EMA gate: a cheap company under its EMA50 is the point
     assert passes_gate(P['value'], below)
+
+
+def test_volume_gate_rejects_the_false_breakout():
+    """A move with no volume behind it must not even be scored."""
+    strong = {'sma': {'above_ema50': True, 'above_ema200': True},
+              'rsi': {'value': 80.0}, 'rvol': 2.4}
+    quiet = dict(strong, rvol=0.8)          # breakout on below-average volume
+    missing = dict(strong, rvol=None)       # not enough bars to judge
+
+    assert passes_gate(P['breakout'], strong)
+    assert not passes_gate(P['breakout'], quiet), "false breakout must be rejected"
+    assert not passes_gate(P['breakout'], missing), "unknown volume is not a pass"
+    assert not passes_gate(P['gorengan'], quiet)
+
+    # profiles with no volume rule are unaffected either way
+    assert passes_gate(P['default'], dict(quiet, rsi={'value': 60.0}))
+    assert passes_gate(P['value'], dict(quiet, rsi={'value': 60.0}))
+
+
+def test_rvol_recent_looks_back_not_just_today():
+    import pandas as pd
+    import numpy as np
+
+    def frame(vols):
+        n = len(vols)
+        return pd.DataFrame({'Close': np.full(n, 100.0), 'Volume': vols},
+                            index=pd.date_range('2024-01-01', periods=n, freq='B'))
+
+    base = [1000.0] * 40
+    # Surge three sessions ago, quiet today: a same-day RVOL check would miss
+    # exactly the setup this is meant to confirm.
+    v = list(base); v[-3] = 4000.0
+    got = rvol_recent(frame(v))
+    assert got == 4.0, f"a 4x spike must measure as 4x, got {got}"
+
+    # Outside the 5-day window it stops counting as a signal. (It joins the
+    # baseline instead, so the ratio dips slightly below 1 -- the point is
+    # only that it no longer clears a 1.5 gate.)
+    v = list(base); v[-6] = 4000.0
+    assert rvol_recent(frame(v)) < 1.5
+
+    assert rvol_recent(frame(base)) == 1.0          # flat volume
+    assert rvol_recent(frame([1000.0] * 10)) is None  # too few bars to judge
 
 
 def test_value_profile_admits_banks_but_demands_quality_elsewhere():

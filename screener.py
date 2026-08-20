@@ -190,9 +190,30 @@ def prescreen(symbols):
                 continue
             sma, rsi = calculate_sma(bars), calculate_rsi(bars)
             if sma and rsi:
-                bars_info[sym] = {'sma': sma, 'rsi': rsi}
+                bars_info[sym] = {'sma': sma, 'rsi': rsi,
+                                  'rvol': rvol_recent(bars)}
         time.sleep(SLEEP)
     return bars_info
+
+
+def rvol_recent(bars, days=5, window=20):
+    """Highest relative volume over the last `days` bars.
+
+    Not today's RVOL alone: a breakout that fired three days ago on heavy
+    volume trades normally today, so a same-day check would reject exactly the
+    setups it is meant to confirm. The question is "was there a volume surge
+    recently", not "is there one right now".
+    """
+    vol = bars['Volume'].dropna()
+    if len(vol) < window + days:
+        return None
+    # Baseline must END where the lookback window BEGINS. If the surge day sits
+    # inside its own reference average it dilutes itself -- a genuine 4x spike
+    # measured against a window containing it reads as only 3.5x.
+    avg = float(vol.iloc[-(window + days):-days].mean())
+    if avg <= 0:
+        return None
+    return round(max(float(vol.iloc[-k]) / avg for k in range(1, days + 1)), 2)
 
 
 def passes_gate(profile, probe):
@@ -205,6 +226,13 @@ def passes_gate(profile, probe):
     rsi_max = g.get('rsi_max')
     if rsi_max is not None and probe['rsi']['value'] >= rsi_max:
         return False
+    min_rvol = g.get('min_rvol')
+    if min_rvol is not None:
+        # No volume behind the move = the classic false breakout. Reject before
+        # spending a fetch on it, rather than merely docking a few points.
+        rv = probe.get('rvol')
+        if rv is None or rv < min_rvol:
+            return False
     return True
 
 

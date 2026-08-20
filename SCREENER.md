@@ -30,8 +30,30 @@ membaca osilator (`oscillator`).
 |---|---|---|---|---|---|
 | **Default** | 28/32/20/13/7 | mean reversion | ≥10 M | bebas | EMA50, RSI<78 |
 | **Value** | 55/10/25/5/5 | mean reversion | ≥5 M | ≥100 | tanpa EMA, RSI<70 |
-| **Breakout** | 10/40/5/35/10 | momentum | ≥10 M | bebas | EMA50, RSI<95 |
-| **Gorengan** | 0/35/0/45/20 | momentum | ≥2 M | 50–500 | EMA50, RSI<95 |
+| **Breakout** | 10/40/5/35/10 | momentum | ≥10 M | bebas | EMA50, RSI<95, **RVOL≥1.5** |
+| **Gorengan** | 0/35/0/45/20 | momentum | ≥2 M | 50–500 | EMA50, RSI<95, **RVOL≥1.5** |
+
+### Gate volume: penyaring false breakout
+
+Breakout tanpa volume adalah definisi false breakout, tapi volume nyaris tidak
+punya pengaruh di skor: OBV cuma 4% dari skor akhir, MFI 2%, dan RVOL tercampur
+dengan rekomendasi analis di dalam pilar Sentimen 10% — sehingga saham yang
+menembus resistance dengan RVOL 0.5x bisa tertolong opini analis.
+
+Terukur sebelum gate ini ada: **75% sinyal breakout tidak punya RVOL ≥ 2x**, dan
+median RVOL kandidatnya cuma **0.94x** — separuh menembus dengan volume di bawah
+rata-rata.
+
+Karena itu volume jadi **syarat di prescreen**, bukan sekadar komponen skor:
+yang tidak lolos tidak dinilai sama sekali. Dampaknya breakout 93→53 kandidat,
+gorengan 104→56.
+
+`min_rvol` diukur sebagai **RVOL tertinggi dalam 5 sesi terakhir**, bukan hari
+ini saja — breakout yang meledak tiga hari lalu volumenya sudah normal hari ini,
+jadi cek harian akan menolak persis setup yang mau dikonfirmasi. Pembandingnya
+rata-rata 20 sesi yang **berakhir sebelum** jendela 5 hari itu, supaya hari
+lonjakan tidak masuk ke rata-ratanya sendiri (kalau masuk, lonjakan 4x terukur
+cuma 3.5x).
 
 ### Kenapa ada dua kurva osilator
 
