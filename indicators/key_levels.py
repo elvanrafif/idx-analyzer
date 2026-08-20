@@ -84,7 +84,12 @@ def calculate_outlook(key_levels, composite, atr=None):
         entry_mid = _rnd(entry_mid, tick)
 
         if atr and atr.get('value'):
-            stop_loss = _rnd(entry_mid - 2 * atr['value'], tick)
+            stop_loss = entry_mid - 2 * atr['value']
+        # A stop must sit below the WHOLE entry range, not just below its
+        # midpoint. With a wide range and a small ATR the 2xATR stop landed
+        # inside the range, so anyone filling near the bottom would have their
+        # stop above their own entry price.
+        stop_loss = _rnd(min(stop_loss, entry_low - tick), tick)
         # Always measure the stop from the entry, never from spot: mixing the
         # two made rr compare percentages with different denominators.
         sl_pct = abs((entry_mid - stop_loss) / entry_mid * 100)

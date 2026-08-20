@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="id" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>IDX Screener</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🎯</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="stylesheet" href="{{ url_for('static', filename='screener.css') }}">
+</head>
+<body>
+<div class="container">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo-mark">🎯</div>
+      <div class="header-text">
+        <h1>IDX <span>SCREENER</span></h1>
+        <p>SINYAL BUY HARIAN — DISARING DARI SELURUH EMITEN LIKUID BEI</p>
+      </div>
+    </div>
+    <div class="scr-actions">
+      <button class="scr-btn ghost" id="scr-settings">⚙ Setelan</button>
+      <button class="scr-btn" id="scr-run">▶ Jalankan</button>
+      <a class="scr-back" href="{{ url_for('index') }}">← Analyzer</a>
+    </div>
+  </div>
+
+  <div class="scr-alert" id="scr-alert" style="display:none"></div>
+  <div class="scr-readonly" id="scr-readonly" style="display:none">
+    Mode baca-saja — Jalankan &amp; Setelan hanya bisa dari server itu sendiri.
+    Untuk akses penuh: <code>ssh -L 8080:127.0.0.1:8080 user@vps</code>
+    lalu buka <code>http://127.0.0.1:8080/screener</code>
+  </div>
+  <div class="scr-progress" id="scr-progress" style="display:none">
+    <div class="scr-progress-fill" id="scr-progress-fill"></div>
+  </div>
+
+  <div id="scr-root" class="scr-root">
+    <p class="no-data">Memuat…</p>
+  </div>
+</div>
+
+<div class="scr-modal" id="scr-modal" style="display:none"></div>
+
+<script src="{{ url_for('static', filename='screener.js') }}"></script>
+</body>
+</html>

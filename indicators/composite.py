@@ -22,24 +22,65 @@ def _blend(parts):
     return sum(s * w for s, w in parts) / sum(w for _, w in parts)
 
 
-def osc_score(v):
-    """0-100 oscillator -> bullishness.
+DEFAULT_WEIGHTS = {
+    'fundamental': 0.28, 'technical': 0.32, 'risk': 0.20,
+    'momentum': 0.13, 'sentiment': 0.07,
+}
 
-    Deliberately NOT `100 - v`: that punished every healthy uptrend (RSI 65
-    scored 35) and fought the Momentum component. Deep oversold is an
-    opportunity, the 50-70 band is a trend worth riding, only >80 is extended.
-    """
-    return float(np.interp(
-        v,
+# Two ways to read the same oscillator, because two strategies disagree about
+# what a high reading means.
+#
+#   mean_reversion — the investor's reading. Deep oversold is an opportunity,
+#     the 50-70 band is a trend worth riding, above 80 is extended and risky.
+#     Peaks at RSI 65 and falls off hard after 80.
+#
+#   momentum — the breakout trader's reading. Strength IS the signal; weakness
+#     is what you avoid. Rises with RSI and only penalises a true blow-off
+#     above ~92. Without this curve a stock ripping at RSI 86 scores 35 and
+#     the technical pillar votes against exactly what the strategy hunts.
+_OSC_CURVES = {
+    'mean_reversion': (
         [0, 20, 30, 50, 65, 75, 85, 100],
         [90, 85, 75, 62, 72, 62, 35, 15],
-    ))
+    ),
+    'momentum': (
+        [0, 20, 30, 40, 50, 60, 70, 80, 88, 94, 100],
+        [5, 12, 22, 35, 50, 65, 78, 88, 92, 78, 55],
+    ),
+}
+
+_BB_CURVES = {
+    # %B -> score. Mean reversion sells the upper band; momentum rides it.
+    'mean_reversion': (
+        [-0.3, 0.0, 0.2, 0.5, 0.8, 1.0, 1.3],
+        [90, 85, 72, 60, 70, 45, 20],
+    ),
+    'momentum': (
+        [-0.3, 0.0, 0.2, 0.5, 0.8, 1.0, 1.3],
+        [10, 20, 35, 55, 78, 88, 72],
+    ),
+}
+
+
+def osc_score(v, mode='mean_reversion'):
+    """0-100 oscillator -> bullishness, read through the chosen strategy.
+
+    Deliberately NOT `100 - v`: that punished every healthy uptrend (RSI 65
+    scored 35) and fought the Momentum component.
+    """
+    xs, ys = _OSC_CURVES.get(mode) or _OSC_CURVES['mean_reversion']
+    return float(np.interp(v, xs, ys))
 
 
 def calculate_composite(info, piotroski, altman, macd_bb_data, rsi_data,
                          sharpe, sortino, rvol_data, hist_1y,
                          adx_data=None, stoch_data=None, obv_data=None,
-                         mfi_data=None, willr_data=None):
+                         mfi_data=None, willr_data=None,
+                         weights=None, oscillator='mean_reversion'):
+    """weights: pillar weights, defaults to DEFAULT_WEIGHTS. A pillar set to 0
+    still gets computed and reported, it just does not move the final score --
+    so you can see what a profile chose to ignore."""
+    w = dict(DEFAULT_WEIGHTS, **(weights or {}))
     try:
         # --- Fundamental (28%) ---
         pe  = _num(info, 'trailingPE')
@@ -101,21 +142,18 @@ def calculate_composite(info, piotroski, altman, macd_bb_data, rsi_data,
 
             # BB: 15% — %B can run outside [0,1]; clip before scoring.
             pct_b = min(1.3, max(-0.3, macd_bb_data['bb']['pct_b']))
-            bb_score = float(np.interp(
-                pct_b,
-                [-0.3, 0.0, 0.2, 0.5, 0.8, 1.0, 1.3],
-                [90, 85, 72, 60, 70, 45, 20],
-            ))
+            bb_xs, bb_ys = _BB_CURVES.get(oscillator) or _BB_CURVES['mean_reversion']
+            bb_score = float(np.interp(pct_b, bb_xs, bb_ys))
             scores.append((bb_score, 0.15))
 
         if rsi_data:
             # RSI: 15%
-            rsi_score = osc_score(rsi_data['value'])
+            rsi_score = osc_score(rsi_data['value'], oscillator)
             scores.append((rsi_score, 0.15))
 
         if stoch_data:
             # Stochastic: 15%
-            stoch_score = osc_score(stoch_data['k'])
+            stoch_score = osc_score(stoch_data['k'], oscillator)
             if stoch_data.get('cross') == 'GOLDEN CROSS':
                 stoch_score = min(100, stoch_score + 10)
             elif stoch_data.get('cross') == 'DEATH CROSS':
@@ -144,11 +182,11 @@ def calculate_composite(info, piotroski, altman, macd_bb_data, rsi_data,
 
         if mfi_data:
             # MFI: 5%
-            scores.append((osc_score(mfi_data['value']), 0.05))
+            scores.append((osc_score(mfi_data['value'], oscillator), 0.05))
 
         if willr_data:
             # Williams %R: 5% — -100..0 maps onto the same 0..100 axis as RSI
-            scores.append((osc_score(willr_data['value'] + 100), 0.05))
+            scores.append((osc_score(willr_data['value'] + 100, oscillator), 0.05))
 
         tech = _blend(scores)
 
@@ -190,8 +228,8 @@ def calculate_composite(info, piotroski, altman, macd_bb_data, rsi_data,
         # of silently scoring 50 (which used to make a data-less bank look
         # like an average company).
         final = _blend([
-            (fund, 0.28), (tech, 0.32), (risk, 0.20),
-            (mom, 0.13), (sent, 0.07),
+            (fund, w['fundamental']), (tech, w['technical']), (risk, w['risk']),
+            (mom, w['momentum']), (sent, w['sentiment']),
         ])
         if final is None:
             return None
@@ -207,6 +245,8 @@ def calculate_composite(info, piotroski, altman, macd_bb_data, rsi_data,
             'final': final,
             'signal': sig,
             'cls': cls,
+            'weights': w,
+            'oscillator': oscillator,
             'components': {
                 k: (round(v, 1) if v is not None else None)
                 for k, v in (

@@ -1211,3 +1211,10 @@ function render(d) {
   document.getElementById('result').scrollIntoView({ behavior: 'smooth', block: 'start' });
   fetchAllAIInsights(ticker, d);
 }
+
+// Deeplink: /?ticker=BBRI runs the analysis on load, so screener cards can
+// link straight into a report.
+(function () {
+  var t = new URLSearchParams(location.search).get('ticker');
+  if (t) { inp.value = t.trim().toUpperCase(); analyze(); }
+})();

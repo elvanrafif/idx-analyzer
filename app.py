@@ -1,4 +1,10 @@
+import hmac
+import json
 import math
+import os
+from datetime import datetime
+from functools import wraps
+from pathlib import Path
 from flask import Flask, render_template, jsonify, request
 from dotenv import load_dotenv
 from services.yahoo_fetcher import fetch_ticker_data, df_to_dict
@@ -23,6 +29,10 @@ from indicators.fundamental import calculate_dividend_yield, calculate_ev_ebitda
 
 load_dotenv()
 app = Flask(__name__)
+# Profiles carry a deliberate display order (default, value, breakout,
+# gorengan). Flask sorts JSON keys by default, which silently reordered the
+# screener tabs alphabetically.
+app.json.sort_keys = False
 
 
 def clean_nan(obj):
@@ -119,6 +129,173 @@ def analyze():
     except Exception as e:
         print(f"ERROR: {str(e)}")
         return jsonify({"error": f"Technical error: {str(e)}"})
+
+
+# ── Screener ──
+# The app reads what screener.py wrote and can kick off a run, but never does
+# the screening inside a request: it takes minutes and fires hundreds of Yahoo
+# calls, far past any gunicorn timeout. A trigger spawns a detached process and
+# returns immediately; progress is tracked through results/status.json so it
+# survives being read by a different gunicorn worker than the one that started it.
+import subprocess
+import sys
+
+import profiles as profiles_mod
+import screener as screener_mod
+
+SCREENER_RESULTS = Path(__file__).parent / 'results'
+MIN_RUN_INTERVAL_SEC = 300   # don't let a button masher rate-limit our IP
+
+LOOPBACK = {'127.0.0.1', '::1', 'localhost'}
+# Headers a reverse proxy adds when it forwards someone else's request.
+PROXY_HEADERS = ('X-Forwarded-For', 'X-Real-IP', 'Forwarded', 'X-Forwarded-Host')
+# Optional escape hatch: set SCREENER_ADMIN_TOKEN in .env to also allow remote
+# admin from a client that sends the matching X-Admin-Token header.
+ADMIN_TOKEN = os.environ.get('SCREENER_ADMIN_TOKEN', '').strip()
+
+
+def is_local_request():
+    """True only for a request that really originated on this machine.
+
+    remote_addr alone is NOT enough: put nginx in front and every visitor
+    arrives as 127.0.0.1, so a naive loopback check would wave the whole
+    internet through. A forwarded request always carries a proxy header, so
+    the presence of one disqualifies it regardless of remote_addr.
+    """
+    if any(request.headers.get(h) for h in PROXY_HEADERS):
+        return False
+    return (request.remote_addr or '') in LOOPBACK
+
+
+def admin_ok():
+    if is_local_request():
+        return True
+    if ADMIN_TOKEN:
+        sent = request.headers.get('X-Admin-Token', '')
+        # constant-time compare so the token cannot be guessed byte by byte
+        return hmac.compare_digest(sent, ADMIN_TOKEN)
+    return False
+
+
+def local_only(fn):
+    @wraps(fn)
+    def guard(*a, **kw):
+        if not admin_ok():
+            return jsonify({
+                "error": "Hanya bisa dijalankan dari server ini sendiri.",
+                "hint": "SSH tunnel: ssh -L 8080:127.0.0.1:8080 user@vps, "
+                        "lalu buka http://127.0.0.1:8080/screener"
+            }), 403
+        return fn(*a, **kw)
+    return guard
+
+
+def _screener_dates():
+    if not SCREENER_RESULTS.exists():
+        return []
+    return sorted((f.stem for f in SCREENER_RESULTS.glob('*.json')
+                   if f.stem != 'status'), reverse=True)
+
+
+@app.route('/screener')
+def screener_page():
+    return render_template('screener.html')
+
+
+@app.route('/api/screener')
+def screener_data():
+    dates = _screener_dates()
+    if not dates:
+        return jsonify({"error": "Belum ada hasil screener. Klik 'Jalankan' "
+                                 "atau: python3 screener.py"})
+
+    requested = (request.args.get('date') or '').strip()
+    date = requested if requested in dates else dates[0]
+    try:
+        payload = json.loads((SCREENER_RESULTS / f"{date}.json").read_text())
+    except Exception as e:
+        print(f"Screener read error: {e}")
+        return jsonify({"error": f"Gagal membaca hasil {date}."})
+
+    payload['available_dates'] = dates
+    return jsonify(payload)
+
+
+@app.route('/api/screener/status')
+def screener_status():
+    st = screener_mod.read_status() or {"state": "idle"}
+    st['admin'] = admin_ok()
+    return jsonify(st)
+
+
+@app.route('/api/screener/profiles', methods=['GET'])
+def screener_profiles():
+    try:
+        return jsonify({"profiles": profiles_mod.load(),
+                        "builtin": profiles_mod.BUILTIN})
+    except Exception as e:
+        print(f"Profiles read error: {e}")
+        return jsonify({"error": str(e)})
+
+
+@app.route('/api/screener/profiles', methods=['POST'])
+@local_only
+def screener_profiles_save():
+    patch = request.get_json(silent=True)
+    if not isinstance(patch, dict):
+        return jsonify({"error": "Body harus objek JSON."}), 400
+    try:
+        # save_overrides validates the MERGED result, so a partial patch that
+        # would produce an invalid profile is rejected before it is written.
+        return jsonify({"profiles": profiles_mod.save_overrides(patch)})
+    except ValueError as e:
+        return jsonify({"error": str(e)}), 400
+    except Exception as e:
+        print(f"Profiles save error: {e}")
+        return jsonify({"error": "Gagal menyimpan setelan."}), 500
+
+
+@app.route('/api/screener/run', methods=['POST'])
+@local_only
+def screener_run():
+    if screener_mod.run_in_progress():
+        return jsonify({"error": "Run lain sedang berjalan.",
+                        "status": screener_mod.read_status()}), 409
+
+    last = screener_mod.read_status() or {}
+    if last.get('state') == 'done' and last.get('updated'):
+        try:
+            age = datetime.now(screener_mod.WIB) - datetime.fromisoformat(last['updated'])
+            if age.total_seconds() < MIN_RUN_INTERVAL_SEC:
+                wait = int(MIN_RUN_INTERVAL_SEC - age.total_seconds())
+                return jsonify({"error": f"Baru saja jalan. Tunggu {wait} detik."}), 429
+        except (ValueError, TypeError):
+            pass
+
+    body = request.get_json(silent=True) or {}
+    # --force because the lock check above already ran. Without it the child
+    # would boot, read the 'running' status we are about to write, mistake its
+    # own parent's marker for a rival run, and exit immediately.
+    cmd = [sys.executable, str(Path(__file__).parent / 'screener.py'), '--force']
+    for name in (body.get('profiles') or []):
+        if name in profiles_mod.load():
+            cmd += ['--profile', name]
+    if body.get('dry_run'):
+        cmd.append('--dry-run')
+
+    try:
+        SCREENER_RESULTS.mkdir(exist_ok=True)
+        logfile = open(SCREENER_RESULTS / 'run.log', 'ab')
+        subprocess.Popen(cmd, cwd=str(Path(__file__).parent),
+                         stdout=logfile, stderr=subprocess.STDOUT,
+                         start_new_session=True)   # survives a gunicorn reload
+    except Exception as e:
+        print(f"Screener spawn error: {e}")
+        return jsonify({"error": f"Gagal menjalankan: {e}"}), 500
+
+    screener_mod.write_status(state='running', stage='starting',
+                              started=datetime.now(screener_mod.WIB).isoformat())
+    return jsonify({"started": True})
 
 
 @app.route('/api/ai-insights', methods=['POST'])

@@ -120,6 +120,19 @@ def test_idx_tick_snapping():
         assert kl[k] % 10 == 0, (k, kl[k])
 
 
+def test_stop_sits_below_the_whole_entry_range():
+    # A 2xATR stop measured from the midpoint can land inside a wide entry
+    # range, putting the stop above a fill at the bottom of that range.
+    kl = calculate_key_levels(_frame(np.linspace(3000, 3100, 30)))
+    for atr_val in (5.0, 25.0, 120.0):
+        o = calculate_outlook(kl, {'final': 70}, atr={'value': atr_val, 'pct': 1.0})
+        assert o['stop_loss'] < o['entry_low'], (atr_val, o['stop_loss'], o['entry_low'])
+        assert o['sl_pct'] > 0
+    # and with no ATR at all it still holds
+    o = calculate_outlook(kl, {'final': 70}, atr=None)
+    assert o['stop_loss'] < o['entry_low'], o
+
+
 def test_outlook_rr_uses_one_denominator():
     kl = calculate_key_levels(_frame(np.linspace(3000, 3100, 30)))
     o = calculate_outlook(kl, {'final': 70}, atr={'value': 50.0, 'pct': 1.6})
